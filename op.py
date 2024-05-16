@@ -29,14 +29,14 @@ def process_csv(file_path):
             open_timestamp = int(open_time.timestamp() * 1000)
             close_timestamp = int(close_time.timestamp() * 1000)
             
-            dateOpen = open_timestamp - 1000 * 60 * 60 * 2
-            dateClose = close_timestamp + 1000 * 60 * 60 * 2
+            dateOpen = open_timestamp - 1000 * 60 * 60 * 4
+            dateClose = close_timestamp + 1000 * 60 * 60 * 4
 
             klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval=5m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
             response = requests.get(klines_url)
             klines_data = response.json()
 
-            print(klines_url)
+            # print(klines_url)
             
             if len(klines_data) > 0:
                 df = pd.DataFrame(klines_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignored'])
@@ -89,4 +89,5 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # 调用函数并传入CSV文件路径
-process_csv('dex_1.csv')
+process_csv('ctx_4.csv')
+
