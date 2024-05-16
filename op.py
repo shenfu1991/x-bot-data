@@ -73,7 +73,13 @@ def process_csv(file_path):
                 
                 add_plot = mpf.make_addplot(markers, type='scatter', markersize=200, marker='o', color='blue')
 
-                fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plot)
+                # 计算WMA10和WMA16指标
+                df['WMA10'] = df['close'].rolling(window=10).apply(lambda x: np.sum(np.arange(1, 11) * x) / 55)
+                df['WMA16'] = df['close'].rolling(window=16).apply(lambda x: np.sum(np.arange(1, 17) * x) / 136)
+
+                add_plot2 = mpf.make_addplot(df[['WMA10', 'WMA16']])
+
+                fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=[add_plot, add_plot2])
                 ax[0].set_title(additional_text, fontsize=12, pad=20)
 
                 fig.savefig(f"{symbol}_{open_time_str}_{close_time_str}.png")
