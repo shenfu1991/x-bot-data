@@ -79,7 +79,8 @@ def process_csv(file_path):
 
                 add_plot2 = mpf.make_addplot(df[['WMA10', 'WMA16']])
 
-                fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=[add_plot, add_plot2])
+                # 设置图形大小，增加x轴长度
+                fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=[add_plot, add_plot2], figsize=(20, 10))
                 ax[0].set_title(additional_text, fontsize=12, pad=20)
 
                 fig.savefig(f"{symbol}_{open_time_str}_{close_time_str}.png")
@@ -89,5 +90,5 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # 调用函数并传入CSV文件路径
-process_csv('ctx_4.csv')
+process_csv('v6x_1.csv')
 
