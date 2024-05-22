@@ -97,7 +97,7 @@ def process_csv(file_path):
                         add_plot_open_close = mpf.make_addplot(open_close_markers, type='scatter', markersize=400, marker='o', color='blue')
                         add_plots.append(add_plot_open_close)
                     if valid_add_markers:
-                        add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='green')
+                        add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black')
                         add_plots.append(add_plot_additional)
                     
                     add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16']])
@@ -118,6 +118,6 @@ def process_csv(file_path):
                     print(f"No valid markers found for {symbol} from {open_time_str} to {close_time_str}")
             else:
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
-                
+
 # 调用函数并传入CSV文件路径
-process_csv('v6x_1.csv')
+process_csv('njx_1.csv')
