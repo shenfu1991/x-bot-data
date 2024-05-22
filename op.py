@@ -24,6 +24,7 @@ def process_csv(file_path):
             add_time3_str = row['addTime3']
             side = row['side']
             earn = row['earn']
+            earnRate = row['earnRate']
 
             current_year = datetime.now().year
             open_time = datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S')
@@ -32,8 +33,8 @@ def process_csv(file_path):
             open_timestamp = int(open_time.timestamp() * 1000)
             close_timestamp = int(close_time.timestamp() * 1000)
             
-            dateOpen = open_timestamp - 1000 * 60 * 60 * 4
-            dateClose = close_timestamp + 1000 * 60 * 60 * 4
+            dateOpen = open_timestamp - 1000 * 60 * 60 * 2
+            dateClose = close_timestamp + 1000 * 60 * 60 * 2
 
             klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval=5m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
             response = requests.get(klines_url)
@@ -50,7 +51,7 @@ def process_csv(file_path):
                 utc_plus_8 = pytz.timezone('Asia/Shanghai')
                 df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
                 
-                additional_text = f"{symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}"
+                additional_text = f"{symbol} {open_time_str} ----> {close_time_str}  {side}  {earn} {earnRate}"
                 
                 # 设置蜡烛图颜色
                 mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
@@ -93,18 +94,22 @@ def process_csv(file_path):
                 if valid_open_close_markers or valid_add_markers:
                     add_plots = []
                     if valid_open_close_markers:
-                        add_plot_open_close = mpf.make_addplot(open_close_markers, type='scatter', markersize=200, marker='o', color='blue')
+                        add_plot_open_close = mpf.make_addplot(open_close_markers, type='scatter', markersize=400, marker='o', color='blue')
                         add_plots.append(add_plot_open_close)
                     if valid_add_markers:
-                        add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=200, marker='o', color='green')
+                        add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='green')
                         add_plots.append(add_plot_additional)
                     
                     add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16']])
                     add_plots.append(add_plot_wma)
 
                     # 设置图形大小，增加x轴长度
-                    fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(20, 10))
-                    ax[0].set_title(additional_text, fontsize=12, pad=20)
+                    fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(40, 20))
+                    ax[0].set_title(additional_text, fontsize=28, pad=20)
+                    
+                    # 修改x轴和y轴的字体大小
+                    ax[0].tick_params(axis='x', labelsize=20)
+                    ax[0].tick_params(axis='y', labelsize=20)
 
                     fig.savefig(f"{symbol}_{open_time_str}_{close_time_str}.png")
                     
@@ -113,6 +118,6 @@ def process_csv(file_path):
                     print(f"No valid markers found for {symbol} from {open_time_str} to {close_time_str}")
             else:
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
-
+                
 # 调用函数并传入CSV文件路径
-process_csv('v6x_4.csv')
+process_csv('v6x_1.csv')
