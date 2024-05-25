@@ -85,7 +85,8 @@ def process_csv(file_path):
                 # 计算WMA10和WMA16指标
                 df['WMA10'] = df['close'].rolling(window=10).apply(lambda x: np.sum(np.arange(1, 11) * x) / 55, raw=False)
                 df['WMA16'] = df['close'].rolling(window=16).apply(lambda x: np.sum(np.arange(1, 17) * x) / 136, raw=False)
-                
+                df['WMA25'] = df['close'].rolling(window=25).apply(lambda x: np.sum(np.arange(1, 26) * x) / 325, raw=False)
+
                 # 过滤有效的标记数据
                 valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                 valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
@@ -100,7 +101,7 @@ def process_csv(file_path):
                         add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black')
                         add_plots.append(add_plot_additional)
                     
-                    add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16']])
+                    add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16', 'WMA25']])
                     add_plots.append(add_plot_wma)
 
                     # 设置图形大小，增加x轴长度
