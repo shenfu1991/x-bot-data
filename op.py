@@ -82,7 +82,7 @@ def process_csv(file_path):
                     if row.name.timestamp() * 1000 in add_timestamps:
                         add_markers[df.index.get_loc(i)] = row['high']
                 
-                # 计算WMA10和WMA16指标
+                # 计算WMA10、WMA16和WMA25指标
                 df['WMA10'] = df['close'].rolling(window=10).apply(lambda x: np.sum(np.arange(1, 11) * x) / 55, raw=False)
                 df['WMA16'] = df['close'].rolling(window=16).apply(lambda x: np.sum(np.arange(1, 17) * x) / 136, raw=False)
                 df['WMA25'] = df['close'].rolling(window=25).apply(lambda x: np.sum(np.arange(1, 26) * x) / 325, raw=False)
@@ -104,8 +104,11 @@ def process_csv(file_path):
                     add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16', 'WMA25']])
                     add_plots.append(add_plot_wma)
 
-                    # 设置图形大小，增加x轴长度
-                    fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(40, 20))
+                    # 根据数据的长度调整图形大小
+                    fig_width = 20  # 固定宽度为20英寸
+                    fig_height = fig_width / 1.4  # 高度为宽度的1.4倍
+                    
+                    fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
                     ax[0].set_title(additional_text, fontsize=28, pad=20)
                     
                     # 修改x轴和y轴的字体大小
@@ -121,4 +124,4 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # 调用函数并传入CSV文件路径
-process_csv('njx_1.csv')
+process_csv('njx_1.csv')                        
