@@ -120,4 +120,4 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # 调用函数并传入CSV文件路径
-process_csv('njx_1.csv')
+process_csv('output.csv')
