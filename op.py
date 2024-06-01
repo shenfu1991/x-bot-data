@@ -104,8 +104,12 @@ def process_csv(file_path):
                     add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16', 'WMA25']])
                     add_plots.append(add_plot_wma)
 
+                      # 根据数据的长度调整图形大小
+                    num_candles = len(df)
+                    fig_width = max(15, num_candles // 3)  # 每10根蜡烛图增加1英寸，最小宽度为15英寸
+
                     # 根据数据的长度调整图形大小
-                    fig_width = 20  # 固定宽度为20英寸
+                    # fig_width = 20  # 固定宽度为20英寸
                     fig_height = fig_width / 1.4  # 高度为宽度的1.4倍
                     
                     fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
@@ -124,4 +128,4 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # 调用函数并传入CSV文件路径
-process_csv('njx_1.csv')                        
+process_csv('njx_1.csv')
