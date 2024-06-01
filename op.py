@@ -25,6 +25,7 @@ def process_csv(file_path):
             side = row['side']
             earn = row['earn']
             earnRate = row['earnRate']
+            cp = row['closeType']
 
             current_year = datetime.now().year
             open_time = datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S')
@@ -51,7 +52,7 @@ def process_csv(file_path):
                 utc_plus_8 = pytz.timezone('Asia/Shanghai')
                 df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
                 
-                additional_text = f"{symbol} {open_time_str} ----> {close_time_str}  {side}  {earn} {earnRate}"
+                additional_text = f"{symbol} {open_time_str} ----> {close_time_str}  {side}  {earn} {earnRate} {cp}"
                 
                 # 设置蜡烛图颜色
                 mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
@@ -113,7 +114,7 @@ def process_csv(file_path):
                     fig_height = fig_width / 1.4  # 高度为宽度的1.4倍
                     
                     fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
-                    ax[0].set_title(additional_text, fontsize=28, pad=20)
+                    ax[0].set_title(additional_text, fontsize=20, pad=20)
                     
                     # 修改x轴和y轴的字体大小
                     ax[0].tick_params(axis='x', labelsize=20)
@@ -128,8 +129,5 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # 调用函数并传入CSV文件路径
-<<<<<<< HEAD
 process_csv('njx_1.csv')
-=======
-process_csv('output.csv')
->>>>>>> 8583b04b41b4d580919f718b2dc6202204f3dba1
+
