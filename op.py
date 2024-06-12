@@ -27,6 +27,7 @@ def process_csv(file_path):
             earnRate = row['earnRate']
             cp = row['closeType']
             me = row['maxEarn']
+            aiSide = row['AISide']
 
             current_year = datetime.now().year
             open_time = datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S')
@@ -53,7 +54,7 @@ def process_csv(file_path):
                 utc_plus_8 = pytz.timezone('Asia/Shanghai')
                 df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
                 
-                additional_text = f"{symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate} {cp}"
+                additional_text = f"{symbol} {open_time_str} ----> {close_time_str}  {side}/{aiSide}  {earn}/{me} {earnRate} {cp}"
                 
                 # 设置蜡烛图颜色
                 mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
@@ -127,4 +128,4 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # 调用函数并传入CSV文件路径
-process_csv('njx_1.csv')
+process_csv('tbx_1.csv')
