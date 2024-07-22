@@ -50,25 +50,20 @@ def process_csv(file_path):
                 df = df[['open', 'high', 'low', 'close', 'volume']]
                 df = df.astype(float)
                 
-                # 将时间转换为UTC+8时区
                 utc_plus_8 = pytz.timezone('Asia/Shanghai')
                 df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
                 
                 additional_text = f"{symbol} {open_time_str} ----> {close_time_str}  {side}/{aiSide}  {earn}/{me} {earnRate} {cp}"
                 
-                # 设置蜡烛图颜色
                 mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
                 s = mpf.make_mpf_style(marketcolors=mc)
 
-                # 向下取整至5分钟的倍数
                 rounded_open_time = round_to_nearest_5min(open_time)
                 rounded_close_time = round_to_nearest_5min(close_time)
                 
-                # 转换为UTC时间戳
                 rounded_open_timestamp = int(rounded_open_time.timestamp() * 1000)
                 rounded_close_timestamp = int(rounded_close_time.timestamp() * 1000)
 
-                # 添加时间的处理
                 add_timestamps = []
                 for add_time_str in [add_time1_str, add_time2_str, add_time3_str]:
                     if add_time_str != 'none':
@@ -76,7 +71,6 @@ def process_csv(file_path):
                         rounded_add_time = round_to_nearest_5min(add_time)
                         add_timestamps.append(int(rounded_add_time.timestamp() * 1000))
                 
-                # 在总数据中找到对应的时间戳并标记
                 open_close_markers = [np.nan] * len(df)
                 add_markers = [np.nan] * len(df)
                 for i, row in df.iterrows():
@@ -85,16 +79,32 @@ def process_csv(file_path):
                     if row.name.timestamp() * 1000 in add_timestamps:
                         add_markers[df.index.get_loc(i)] = row['high']
                 
-                # 计算WMA10、WMA16和WMA25指标
                 df['WMA10'] = df['close'].rolling(window=10).apply(lambda x: np.sum(np.arange(1, 11) * x) / 55, raw=False)
                 df['WMA16'] = df['close'].rolling(window=16).apply(lambda x: np.sum(np.arange(1, 17) * x) / 136, raw=False)
                 df['WMA25'] = df['close'].rolling(window=25).apply(lambda x: np.sum(np.arange(1, 26) * x) / 325, raw=False)
+                
+                df['tr'] = np.maximum((df['high'] - df['low']), np.maximum(abs(df['high'] - df['close'].shift()), abs(df['low'] - df['close'].shift())))
+                df['atr'] = df['tr'].rolling(window=14).mean()
+                df['up_move'] = df['high'] - df['high'].shift()
+                df['down_move'] = df['low'].shift() - df['low']
+                df['plus_dm'] = np.where((df['up_move'] > df['down_move']) & (df['up_move'] > 0), df['up_move'], 0)
+                df['minus_dm'] = np.where((df['down_move'] > df['up_move']) & (df['down_move'] > 0), df['down_move'], 0)
+                df['plus_di'] = 100 * (df['plus_dm'].ewm(alpha=1/14).mean() / df['atr'])
+                df['minus_di'] = 100 * (df['minus_dm'].ewm(alpha=1/14).mean() / df['atr'])
+                df['dx'] = (abs(df['plus_di'] - df['minus_di']) / (df['plus_di'] + df['minus_di'])) * 100
+                df['adx'] = df['dx'].ewm(alpha=1/14).mean()
+                
+                delta = df['close'].diff()
+                gain = delta.where(delta > 0, 0)
+                loss = -delta.where(delta < 0, 0)
+                avg_gain = gain.rolling(window=14).mean()
+                avg_loss = loss.rolling(window=14).mean()
+                rs = avg_gain / avg_loss
+                df['rsi'] = 100 - (100 / (1 + rs))
 
-                # 过滤有效的标记数据
                 valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                 valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
 
-                # 检查是否有有效数据
                 if valid_open_close_markers or valid_add_markers:
                     add_plots = []
                     if valid_open_close_markers:
@@ -106,26 +116,47 @@ def process_csv(file_path):
                     
                     add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16', 'WMA25']])
                     add_plots.append(add_plot_wma)
-
-                    # 根据数据的长度调整图形大小
-                    num_candles = len(df)
-                    fig_width = max(15, num_candles // 3)  # 每10根蜡烛图增加1英寸，最小宽度为15英寸
-                    fig_height = fig_width / 1.4  # 高度为宽度的1.4倍
                     
-                    fig, ax = mpf.plot(df, type='candle', volume=True, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
+                    add_plot_adx = mpf.make_addplot(df['adx'], panel=1, color='purple', secondary_y=False)
+                    add_plots.append(add_plot_adx)
+
+                   # 添加ADX 20线
+                    add_plot_adx_20 = mpf.make_addplot([20] * len(df), panel=1, color='gray', linestyle='--', secondary_y=False)
+                    add_plots.append(add_plot_adx_20)
+                    
+                    # 添加ADX 40线
+                    add_plot_adx_40 = mpf.make_addplot([40] * len(df), panel=1, color='gray', linestyle='--', secondary_y=False)
+                    add_plots.append(add_plot_adx_40)
+                    
+                    add_plot_rsi = mpf.make_addplot(df['rsi'], panel=2, color='orange', secondary_y=False)
+                    add_plots.append(add_plot_rsi)
+
+                     # 添加RSI 40线
+                    add_plot_rsi_40 = mpf.make_addplot([40] * len(df), panel=2, color='gray', linestyle='--', secondary_y=False)
+                    add_plots.append(add_plot_rsi_40)
+                    
+                    # 添加RSI 60线
+                    add_plot_rsi_60 = mpf.make_addplot([60] * len(df), panel=2, color='gray', linestyle='--', secondary_y=False)
+                    add_plots.append(add_plot_rsi_60)
+
+
+                    num_candles = len(df)
+                    fig_width = max(15, num_candles // 3)
+                    fig_height = fig_width / 1.4
+                    
+                    fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height), panel_ratios=(6, 2, 2))
                     ax[0].set_title(additional_text, fontsize=20, pad=20)
                     
-                    # 修改x轴和y轴的字体大小
                     ax[0].tick_params(axis='x', labelsize=20)
                     ax[0].tick_params(axis='y', labelsize=20)
 
                     fig.savefig(f"{symbol}_{open_time_str}_{close_time_str}.png")
                     
-                    print(f"K-line chart with volume generated for {symbol} from {open_time_str} to {close_time_str}")
+                    print(f"K-line chart with indicators generated for {symbol} from {open_time_str} to {close_time_str}")
                 else:
                     print(f"No valid markers found for {symbol} from {open_time_str} to {close_time_str}")
             else:
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
-# 调用函数并传入CSV文件路径
-process_csv('njy_4.csv')
+# Call the function with the CSV file path
+process_csv('cty_4.csv')
