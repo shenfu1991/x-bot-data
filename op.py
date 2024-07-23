@@ -6,27 +6,53 @@ import pandas as pd
 import pytz
 import numpy as np
 
-def calculate_adx(high, low, close, period=14):
-    df = pd.DataFrame({'high': high, 'low': low, 'close': close})
-    df['tr1'] = df['high'] - df['low']
-    df['tr2'] = abs(df['high'] - df['close'].shift(1))
-    df['tr3'] = abs(df['low'] - df['close'].shift(1))
-    df['tr'] = df[['tr1', 'tr2', 'tr3']].max(axis=1)
-    df['atr'] = df['tr'].rolling(window=period).mean()
 
-    df['up_move'] = df['high'] - df['high'].shift(1)
-    df['down_move'] = df['low'].shift(1) - df['low']
+def add_dashed_lines(df, panel, levels):
+    add_plots = []
+    for level in levels:
+        add_plot = mpf.make_addplot([level] * len(df), panel=panel, color='gray', linestyle='--', secondary_y=False)
+        add_plots.append(add_plot)
+    return add_plots
 
-    df['plus_dm'] = np.where((df['up_move'] > df['down_move']) & (df['up_move'] > 0), df['up_move'], 0)
-    df['minus_dm'] = np.where((df['down_move'] > df['up_move']) & (df['down_move'] > 0), df['down_move'], 0)
+def calculate_adx(high, low, close, window=14):
+    # Convert input arrays to pandas Series
+    high = pd.Series(high)
+    low = pd.Series(low)
+    close = pd.Series(close)
 
-    df['plus_di'] = 100 * df['plus_dm'].rolling(window=period).sum() / df['atr']
-    df['minus_di'] = 100 * df['minus_dm'].rolling(window=period).sum() / df['atr']
+    # Calculate True Range
+    tr1 = high - low
+    tr2 = abs(high - close.shift())
+    tr3 = abs(low - close.shift())
+    true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
 
-    df['dx'] = 100 * abs(df['plus_di'] - df['minus_di']) / (df['plus_di'] + df['minus_di'])
-    df['adx'] = df['dx'].rolling(window=period).mean()
+    # Calculate Directional Movement
+    up = high - high.shift()
+    down = low.shift() - low
 
-    return df['adx']
+    pos_dm = np.where((up > down) & (up > 0), up, 0)
+    neg_dm = np.where((down > up) & (down > 0), down, 0)
+
+    # Convert numpy arrays to pandas Series
+    pos_dm = pd.Series(pos_dm, index=up.index)
+    neg_dm = pd.Series(neg_dm, index=down.index)
+
+    # Calculate True Range and Directional Movement using Wilder's Smoothing Method
+    tr_smooth = true_range.ewm(alpha=1/window, adjust=False).mean()
+    pos_dm_smooth = pos_dm.ewm(alpha=1/window, adjust=False).mean()
+    neg_dm_smooth = neg_dm.ewm(alpha=1/window, adjust=False).mean()
+
+    # Calculate Directional Indicators
+    pos_di = 100 * pos_dm_smooth / tr_smooth
+    neg_di = 100 * neg_dm_smooth / tr_smooth
+
+    # Calculate Directional Movement Index
+    dx = 100 * abs(pos_di - neg_di) / (pos_di + neg_di + 1e-8)
+
+    # Calculate Average Directional Index using Wilder's Smoothing Method
+    adx = dx.ewm(alpha=1/window, adjust=False).mean()
+
+    return pd.Series(adx, name='ADX')
 
 def round_to_nearest_5min(dt):
     rounded = dt - timedelta(minutes=dt.minute % 5,
@@ -104,14 +130,10 @@ def process_csv(file_path):
                 df['WMA10'] = df['close'].rolling(window=10).apply(lambda x: np.sum(np.arange(1, 11) * x) / 55, raw=False)
                 df['WMA16'] = df['close'].rolling(window=16).apply(lambda x: np.sum(np.arange(1, 17) * x) / 136, raw=False)
                 df['WMA25'] = df['close'].rolling(window=25).apply(lambda x: np.sum(np.arange(1, 26) * x) / 325, raw=False)
-
-               # 在 process_csv 函数中使用这个函数
+                 
+                #计算adx
                 df['adx'] = calculate_adx(df['high'], df['low'], df['close'])
 
-                # 处理前面数据不足的情况
-                min_periods = 2 * 14 + 1  # 最小需要的周期数
-                df['adx'] = df['adx'].fillna(method='bfill')  # 用后面的有效值填充前面的 NaN
-                df['adx'].iloc[:min_periods] = np.nan  # 将前面不足的部分设为 NaN
 
                 delta = df['close'].diff()
                 gain = delta.where(delta > 0, 0)
@@ -139,24 +161,17 @@ def process_csv(file_path):
                     add_plot_adx = mpf.make_addplot(df['adx'], panel=1, color='purple', secondary_y=False)
                     add_plots.append(add_plot_adx)
 
-                   # 添加ADX 30线
-                    add_plot_adx_30 = mpf.make_addplot([30] * len(df), panel=1, color='gray', linestyle='--', secondary_y=False)
-                    add_plots.append(add_plot_adx_30)
-                    
-                    # 添加ADX 40线
-                    add_plot_adx_40 = mpf.make_addplot([40] * len(df), panel=1, color='gray', linestyle='--', secondary_y=False)
-                    add_plots.append(add_plot_adx_40)
-                    
+                     # Add dashed lines for ADX
+                    adx_levels = [10, 20, 30, 40, 50, 60]
+                    add_plots.extend(add_dashed_lines(df, 1, adx_levels))
+
+
                     add_plot_rsi = mpf.make_addplot(df['rsi'], panel=2, color='orange', secondary_y=False)
                     add_plots.append(add_plot_rsi)
 
-                     # 添加RSI 40线
-                    add_plot_rsi_40 = mpf.make_addplot([40] * len(df), panel=2, color='gray', linestyle='--', secondary_y=False)
-                    add_plots.append(add_plot_rsi_40)
-                    
-                    # 添加RSI 60线
-                    add_plot_rsi_60 = mpf.make_addplot([60] * len(df), panel=2, color='gray', linestyle='--', secondary_y=False)
-                    add_plots.append(add_plot_rsi_60)
+                     # Add dashed lines for RSI
+                    rsi_levels = [10, 20, 30, 40, 50, 60, 70, 80]
+                    add_plots.extend(add_dashed_lines(df, 2, rsi_levels))
 
 
                     num_candles = len(df)
@@ -178,4 +193,5 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # Call the function with the CSV file path
-process_csv('cty_4.csv')
+process_csv('hax_1.csv')
+
