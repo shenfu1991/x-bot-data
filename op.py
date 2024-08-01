@@ -6,7 +6,6 @@ import pandas as pd
 import pytz
 import numpy as np
 
-
 def add_dashed_lines(df, panel, levels):
     add_plots = []
     for level in levels:
@@ -59,6 +58,14 @@ def round_to_nearest_5min(dt):
                              seconds=dt.second,
                              microseconds=dt.microsecond)
     return rounded
+
+def calculate_macd(data, fast=14, slow=30, signal=9):
+    exp1 = data.ewm(span=fast, adjust=False).mean()
+    exp2 = data.ewm(span=slow, adjust=False).mean()
+    macd = exp1 - exp2
+    signal = macd.ewm(span=signal, adjust=False).mean()
+    histogram = macd - signal
+    return macd, signal, histogram
 
 def process_csv(file_path):
     with open(file_path, 'r') as file:
@@ -134,7 +141,6 @@ def process_csv(file_path):
                 #计算adx
                 df['adx'] = calculate_adx(df['high'], df['low'], df['close'])
 
-
                 delta = df['close'].diff()
                 gain = delta.where(delta > 0, 0)
                 loss = -delta.where(delta < 0, 0)
@@ -142,6 +148,9 @@ def process_csv(file_path):
                 avg_loss = loss.rolling(window=14).mean()
                 rs = avg_gain / avg_loss
                 df['rsi'] = 100 - (100 / (1 + rs))
+
+                # Calculate MACD
+                df['macd'], df['signal'], df['histogram'] = calculate_macd(df['close'], fast=14, slow=30)
 
                 valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                 valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
@@ -161,24 +170,28 @@ def process_csv(file_path):
                     add_plot_adx = mpf.make_addplot(df['adx'], panel=1, color='purple', secondary_y=False)
                     add_plots.append(add_plot_adx)
 
-                     # Add dashed lines for ADX
-                    adx_levels = [10, 20, 30, 40, 50, 60]
+                    # Add dashed lines for ADX
+                    adx_levels = [30, 50]
                     add_plots.extend(add_dashed_lines(df, 1, adx_levels))
-
 
                     add_plot_rsi = mpf.make_addplot(df['rsi'], panel=2, color='orange', secondary_y=False)
                     add_plots.append(add_plot_rsi)
 
-                     # Add dashed lines for RSI
-                    rsi_levels = [10, 20, 30, 40, 50, 60, 70, 80]
+                    # Add dashed lines for RSI
+                    rsi_levels = [30, 40, 60, 70]
                     add_plots.extend(add_dashed_lines(df, 2, rsi_levels))
 
+                    # Add MACD plots
+                    add_plot_macd = mpf.make_addplot(df['macd'], panel=3, color='blue', secondary_y=False)
+                    add_plot_signal = mpf.make_addplot(df['signal'], panel=3, color='orange', secondary_y=False)
+                    add_plot_histogram = mpf.make_addplot(df['histogram'], panel=3, type='bar', color='gray', secondary_y=False)
+                    add_plots.extend([add_plot_macd, add_plot_signal, add_plot_histogram])
 
                     num_candles = len(df)
                     fig_width = max(15, num_candles // 3)
                     fig_height = fig_width / 1.4
                     
-                    fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height), panel_ratios=(6, 2, 2))
+                    fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height), panel_ratios=(6, 2, 2, 2))
                     ax[0].set_title(additional_text, fontsize=20, pad=20)
                     
                     ax[0].tick_params(axis='x', labelsize=20)
@@ -193,5 +206,4 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # Call the function with the CSV file path
-process_csv('hax_1.csv')
-
+process_csv('ctx_4.csv')
