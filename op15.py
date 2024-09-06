@@ -14,49 +14,39 @@ def add_dashed_lines(df, panel, levels):
     return add_plots
 
 def calculate_adx(high, low, close, window=14):
-    # Convert input arrays to pandas Series
     high = pd.Series(high)
     low = pd.Series(low)
     close = pd.Series(close)
 
-    # Calculate True Range
     tr1 = high - low
     tr2 = abs(high - close.shift())
     tr3 = abs(low - close.shift())
     true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
 
-    # Calculate Directional Movement
     up = high - high.shift()
     down = low.shift() - low
 
     pos_dm = np.where((up > down) & (up > 0), up, 0)
     neg_dm = np.where((down > up) & (down > 0), down, 0)
 
-    # Convert numpy arrays to pandas Series
     pos_dm = pd.Series(pos_dm, index=up.index)
     neg_dm = pd.Series(neg_dm, index=down.index)
 
-    # Calculate True Range and Directional Movement using Wilder's Smoothing Method
     tr_smooth = true_range.ewm(alpha=1/window, adjust=False).mean()
     pos_dm_smooth = pos_dm.ewm(alpha=1/window, adjust=False).mean()
     neg_dm_smooth = neg_dm.ewm(alpha=1/window, adjust=False).mean()
 
-    # Calculate Directional Indicators
     pos_di = 100 * pos_dm_smooth / tr_smooth
     neg_di = 100 * neg_dm_smooth / tr_smooth
 
-    # Calculate Directional Movement Index
     dx = 100 * abs(pos_di - neg_di) / (pos_di + neg_di + 1e-8)
-
-    # Calculate Average Directional Index using Wilder's Smoothing Method
     adx = dx.ewm(alpha=1/window, adjust=False).mean()
 
     return pd.Series(adx, name='ADX')
 
-def round_to_nearest_5min(dt):
-    rounded = dt - timedelta(minutes=dt.minute % 5,
-                             seconds=dt.second,
-                             microseconds=dt.microsecond)
+def round_to_nearest_15min(dt):
+    minutes = (dt.minute // 15) * 15
+    rounded = dt.replace(minute=minutes, second=0, microsecond=0)
     return rounded
 
 def calculate_macd(data, fast=14, slow=30, signal=9):
@@ -84,7 +74,6 @@ def process_csv(file_path):
             me = row['maxEarn']
             maxEarnRate = row['maxEarnRate']
             aiSide = row['AISide']
-            funcName = row["name"]
 
             current_year = datetime.now().year
             open_time = datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S')
@@ -96,9 +85,11 @@ def process_csv(file_path):
             dateOpen = open_timestamp - 1000 * 60 * 60 * 8
             dateClose = close_timestamp + 1000 * 60 * 60 * 8
 
-            klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval=5m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
+            klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval=15m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
             response = requests.get(klines_url)
             klines_data = response.json()
+
+            print(klines_url)
 
             if len(klines_data) > 0:
                 df = pd.DataFrame(klines_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignored'])
@@ -110,13 +101,13 @@ def process_csv(file_path):
                 utc_plus_8 = pytz.timezone('Asia/Shanghai')
                 df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
                 
-                additional_text = f"{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}/{aiSide}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
+                additional_text = f"{symbol} {open_time_str} ----> {close_time_str}  {side}/{aiSide}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
                 
                 mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
                 s = mpf.make_mpf_style(marketcolors=mc)
 
-                rounded_open_time = round_to_nearest_5min(open_time)
-                rounded_close_time = round_to_nearest_5min(close_time)
+                rounded_open_time = round_to_nearest_15min(open_time)
+                rounded_close_time = round_to_nearest_15min(close_time)
                 
                 rounded_open_timestamp = int(rounded_open_time.timestamp() * 1000)
                 rounded_close_timestamp = int(rounded_close_time.timestamp() * 1000)
@@ -125,7 +116,7 @@ def process_csv(file_path):
                 for add_time_str in [add_time1_str, add_time2_str, add_time3_str]:
                     if add_time_str != 'none':
                         add_time = datetime.strptime(f"{current_year}-{add_time_str}", '%Y-%m-%d %H:%M:%S')
-                        rounded_add_time = round_to_nearest_5min(add_time)
+                        rounded_add_time = round_to_nearest_15min(add_time)
                         add_timestamps.append(int(rounded_add_time.timestamp() * 1000))
                 
                 open_close_markers = [np.nan] * len(df)
@@ -140,10 +131,8 @@ def process_csv(file_path):
                 df['WMA16'] = df['close'].rolling(window=16).apply(lambda x: np.sum(np.arange(1, 17) * x) / 136, raw=False)
                 df['WMA25'] = df['close'].rolling(window=25).apply(lambda x: np.sum(np.arange(1, 26) * x) / 325, raw=False)
                 
-                # Calculate SMAs
                 df['SMA80'] = df['close'].rolling(window=80).mean()
              
-                #计算adx
                 df['adx'] = calculate_adx(df['high'], df['low'], df['close'])
 
                 delta = df['close'].diff()
@@ -154,7 +143,6 @@ def process_csv(file_path):
                 rs = avg_gain / avg_loss
                 df['rsi'] = 100 - (100 / (1 + rs))
 
-                # Calculate MACD
                 df['macd'], df['signal'], df['histogram'] = calculate_macd(df['close'], fast=14, slow=30)
 
                 valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
@@ -172,25 +160,21 @@ def process_csv(file_path):
                     add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16', 'WMA25']])
                     add_plots.append(add_plot_wma)
                     
-                    # Add SMAs to the plot
                     add_plot_sma = mpf.make_addplot(df[['SMA80']], linestyle='--')
                     add_plots.append(add_plot_sma)
                     
                     add_plot_adx = mpf.make_addplot(df['adx'], panel=1, color='purple', secondary_y=False)
                     add_plots.append(add_plot_adx)
 
-                    # Add dashed lines for ADX
                     adx_levels = [30, 50]
                     add_plots.extend(add_dashed_lines(df, 1, adx_levels))
 
                     add_plot_rsi = mpf.make_addplot(df['rsi'], panel=2, color='orange', secondary_y=False)
                     add_plots.append(add_plot_rsi)
 
-                    # Add dashed lines for RSI
                     rsi_levels = [30, 40, 60, 70]
                     add_plots.extend(add_dashed_lines(df, 2, rsi_levels))
 
-                    # Add MACD plots
                     add_plot_macd = mpf.make_addplot(df['macd'], panel=3, color='blue', secondary_y=False)
                     add_plot_signal = mpf.make_addplot(df['signal'], panel=3, color='orange', secondary_y=False)
                     add_plot_histogram = mpf.make_addplot(df['histogram'], panel=3, type='bar', color='gray', secondary_y=False)
@@ -214,5 +198,4 @@ def process_csv(file_path):
             else:
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
-# Call the function with the CSV file path
-process_csv('ctx_1.csv')
+process_csv('hay_1.csv')
