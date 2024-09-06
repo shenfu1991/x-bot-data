@@ -84,7 +84,7 @@ def process_csv(file_path):
             me = row['maxEarn']
             maxEarnRate = row['maxEarnRate']
             aiSide = row['AISide']
-            funcName = row["name"]
+            funcName = row["funcName"]
 
             current_year = datetime.now().year
             open_time = datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S')
