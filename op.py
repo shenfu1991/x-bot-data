@@ -84,9 +84,9 @@ def process_csv(file_path):
             me = row['maxEarn']
             maxEarnRate = row['maxEarnRate']
             aiSide = row['AISide']
-           # funcName = row["funcName"]
-            funcName = "none"
-            
+            funcName = row["funcName"]
+            #funcName = "none"
+
             current_year = datetime.now().year
             open_time = datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S')
             close_time = datetime.strptime(f"{current_year}-{close_time_str}", '%Y-%m-%d %H:%M:%S')
@@ -216,4 +216,4 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # Call the function with the CSV file path
-process_csv('ctx_1.csv')
+process_csv('qcx_2.csv')
