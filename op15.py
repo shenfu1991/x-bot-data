@@ -98,14 +98,12 @@ def process_csv(file_path):
 
             current_year = datetime.now().year
             open_time = datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S')
-            print("ddd")
-            print(open_time)
             close_time = datetime.strptime(f"{current_year}-{close_time_str}", '%Y-%m-%d %H:%M:%S')
             
             open_timestamp = int(open_time.timestamp() * 1000)
             close_timestamp = int(close_time.timestamp() * 1000)
             
-            dateOpen = open_timestamp - 1000 * 60 * 60 * 8
+            dateOpen = open_timestamp - 1000 * 60 * 60 * 14
             dateClose = close_timestamp + 1000 * 60 * 60 * 8
 
             klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval=15m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
@@ -113,11 +111,18 @@ def process_csv(file_path):
             klines_data = response.json()
 
             if len(klines_data) > 0:
+                print(f"beginning plot {symbol}")
+                print(f"open time {open_time}")
                 df = pd.DataFrame(klines_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignored'])
                 df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
                 df.set_index('timestamp', inplace=True)
                 df = df[['open', 'high', 'low', 'close', 'volume']]
                 df = df.astype(float)
+
+                # 添加此检查代码
+                if df.empty or df[['open', 'high', 'low', 'close']].isnull().all().any():
+                    print(f"No valid data for plotting for {symbol} from {open_time_str} to {close_time_str}")
+                    return
                 
                 utc_plus_8 = pytz.timezone('Asia/Shanghai')
                 df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
@@ -128,8 +133,6 @@ def process_csv(file_path):
                 s = mpf.make_mpf_style(marketcolors=mc)
 
                 rounded_open_time = round_to_nearest_5min(open_time)
-                print("ooo")
-                print(rounded_open_time)
                 rounded_close_time = round_to_nearest_5min(close_time)
                 
                 rounded_open_timestamp = int(rounded_open_time.timestamp() * 1000)
@@ -141,22 +144,28 @@ def process_csv(file_path):
                         add_time = datetime.strptime(f"{current_year}-{add_time_str}", '%Y-%m-%d %H:%M:%S')
                         rounded_add_time = round_to_nearest_5min(add_time)
                         add_timestamps.append(int(rounded_add_time.timestamp() * 1000))
+
                 
                 open_close_markers = [np.nan] * len(df)
+
+                
+
                 add_markers = [np.nan] * len(df)
                 for i, row in df.iterrows():
                     if row.name.timestamp() * 1000 == rounded_open_timestamp or row.name.timestamp() * 1000 == rounded_close_timestamp:
                         open_close_markers[df.index.get_loc(i)] = row['high']
                     if row.name.timestamp() * 1000 in add_timestamps:
                         add_markers[df.index.get_loc(i)] = row['high']
-                
-                df['WMA10'] = df['close'].rolling(window=10).apply(lambda x: np.sum(np.arange(1, 11) * x) / 55, raw=False)
-                df['WMA16'] = df['close'].rolling(window=16).apply(lambda x: np.sum(np.arange(1, 17) * x) / 136, raw=False)
-                df['WMA25'] = df['close'].rolling(window=25).apply(lambda x: np.sum(np.arange(1, 26) * x) / 325, raw=False)
+               
+
+                # df['WMA10'] = df['close'].rolling(window=10).apply(lambda x: np.sum(np.arange(1, 11) * x) / 55, raw=False)
+                # df['WMA16'] = df['close'].rolling(window=16).apply(lambda x: np.sum(np.arange(1, 17) * x) / 136, raw=False)
+                # df['WMA25'] = df['close'].rolling(window=25).apply(lambda x: np.sum(np.arange(1, 26) * x) / 325, raw=False)
                 
                 # Calculate SMAs
-                df['SMA80'] = df['close'].rolling(window=80).mean()
-             
+                df['SMA50'] = df['close'].rolling(window=50).mean()
+                df['SMA30'] = df['close'].rolling(window=30).mean()
+
                 #计算adx
                 df['adx'] = calculate_adx(df['high'], df['low'], df['close'])
 
@@ -170,7 +179,7 @@ def process_csv(file_path):
 
                 # Calculate MACD
                 df['macd'], df['signal'], df['histogram'] = calculate_macd(df['close'], fast=14, slow=30)
-
+               
                 valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                 valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
 
@@ -183,11 +192,11 @@ def process_csv(file_path):
                         add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black')
                         add_plots.append(add_plot_additional)
                     
-                    add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16', 'WMA25']])
-                    add_plots.append(add_plot_wma)
+                    # add_plot_wma = mpf.make_addplot(df[['WMA10', 'WMA16', 'WMA25']])
+                    # add_plots.append(add_plot_wma)
                     
                     # Add SMAs to the plot
-                    add_plot_sma = mpf.make_addplot(df[['SMA80']], linestyle='--')
+                    add_plot_sma = mpf.make_addplot(df[['SMA50','SMA30']], linestyle='--')
                     add_plots.append(add_plot_sma)
                     
                     add_plot_adx = mpf.make_addplot(df['adx'], panel=1, color='purple', secondary_y=False)
@@ -211,9 +220,9 @@ def process_csv(file_path):
                     add_plots.extend([add_plot_macd, add_plot_signal, add_plot_histogram])
 
                     num_candles = len(df)
-                    fig_width = max(15, num_candles // 3)
-                    fig_height = fig_width / 1.4
-                    
+                    fig_width = max(15, num_candles // 3)*0.8
+                    fig_height = fig_width/1.4
+               
                     fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height), panel_ratios=(6, 2, 2, 2))
                     ax[0].set_title(additional_text, fontsize=20, pad=20)
                     
