@@ -104,7 +104,7 @@ def process_csv(file_path):
             close_timestamp = int(close_time.timestamp() * 1000)
             
             dateOpen = open_timestamp - 1000 * 60 * 60 * 14
-            dateClose = close_timestamp + 1000 * 60 * 60 * 8
+            dateClose = close_timestamp + 1000 * 60 * 60 * 14
 
             klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval=15m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
             response = requests.get(klines_url)
@@ -165,6 +165,7 @@ def process_csv(file_path):
                 # Calculate SMAs
                 df['SMA50'] = df['close'].rolling(window=50).mean()
                 df['SMA30'] = df['close'].rolling(window=30).mean()
+                df['SMA20'] = df['close'].rolling(window=20).mean()
 
                 #计算adx
                 # df['adx'] = calculate_adx(df['high'], df['low'], df['close'])
@@ -196,7 +197,7 @@ def process_csv(file_path):
                     # add_plots.append(add_plot_wma)
                     
                     # Add SMAs to the plot
-                    add_plot_sma = mpf.make_addplot(df[['SMA50','SMA30']], linestyle='--')
+                    add_plot_sma = mpf.make_addplot(df[['SMA50','SMA30','SMA20']], linestyle='--')
                     add_plots.append(add_plot_sma)
                     
                     # add_plot_adx = mpf.make_addplot(df['adx'], panel=1, color='purple', secondary_y=False)
