@@ -240,4 +240,4 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # Call the function with the CSV file path
-process_csv('qcx_2.csv')
+process_csv('ctx_1.csv')
