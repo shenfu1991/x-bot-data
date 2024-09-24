@@ -92,7 +92,6 @@ def process_csv(file_path):
             cp = row['closeType']
             me = row['maxEarn']
             maxEarnRate = row['maxEarnRate']
-            aiSide = row['AISide']
             funcName = row["funcName"]
             #funcName = "none"
 
@@ -127,7 +126,7 @@ def process_csv(file_path):
                 utc_plus_8 = pytz.timezone('Asia/Shanghai')
                 df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
                 
-                additional_text = f"{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}/{aiSide}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
+                additional_text = f"{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side} {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
                 
                 mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
                 s = mpf.make_mpf_style(marketcolors=mc)
@@ -240,4 +239,4 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # Call the function with the CSV file path
-process_csv('ctx_1.csv')
+process_csv('njx_5.csv')
