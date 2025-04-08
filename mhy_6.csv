@@ -1,0 +1,5 @@
+same,same2,lc,sc,funcName,bootTime,openTime,addTime1,addTime2,addTime3,halfClose,halfEarn,closeTime,duration,name,symbol,side,closeType,openInfo,earn,earnRate,maxEarn,maxEarnRate,maxLoss,lossRate,x,Double,Fsum,GSum,stopEarn,stopLoss,stopLossWMA,stopLossWMA_B,oppo,subStatus
+0_0,0_0,1,0, hl9,04-07 04:31:51,04-07 04:32:01,none,none,none,none,0.00,04-07 11:01:23,389,N984415782,NILUSDT,long,stopEarn,,24.63,0.0352,63.32,0.0905,-10.09,-0.0144,0.35,0,50.09,24.07,0,0,0,0,0,0
+0_0,0_0,0,1, hl9,04-07 06:25:46,04-07 06:25:57,none,none,none,none,0.00,04-07 18:15:09,709,N373302532,AUCTIONUSDT,short,stopEarn,,76.31,0.1224,100.63,0.1679,-5.10,-0.0072,0.35,0,146.90,99.82,0,0,0,0,0,0
+0_0,0_0,1,0, hl9,04-07 08:10:22,04-07 08:10:32,none,none,none,none,0.00,04-07 19:34:22,683,N816944690,GMXUSDT,long,stopEarn,,28.69,0.0410,97.46,0.1392,-33.72,-0.0482,0.35,0,128.51,127.95,0,0,0,0,0,0
+0_0,0_0,1,0, hl9,04-07 22:51:40,04-07 22:51:50,none,none,none,none,0.00,04-08 08:24:16,572,N799486325,AXLUSDT,long,stopEarn,,29.93,0.0428,42.23,0.0603,-17.87,-0.0255,0.35,0,157.88,157.32,0,0,0,0,0,0

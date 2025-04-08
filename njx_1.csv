@@ -1,0 +1,6 @@
+same,same2,lc,sc,funcName,bootTime,openTime,addTime1,addTime2,addTime3,halfClose,halfEarn,closeTime,duration,name,symbol,side,closeType,openInfo,earn,earnRate,maxEarn,maxEarnRate,maxLoss,lossRate,x,Double,Fsum,GSum,stopEarn,stopLoss,stopLossWMA,stopLossWMA_B,oppo,subStatus
+0_0,0_0,2,3, fk,04-08 11:45:04,04-08 11:46:54,none,none,none,none,0.00,04-08 13:01:21,74,N630335976,FUNUSDT,long,stopLoss,,-35.29,-0.0504,8.18,0.0117,-35.29,-0.0504,0.35,0,4.94,-35.85,0,1,0,0,0,0
+0_0,0_0,6,4, fk,04-08 12:07:51,04-08 12:08:01,none,none,none,none,0.00,04-08 13:09:57,61,N196417633,MAVIAUSDT,short,stopLoss,,-36.77,-0.0499,1.39,0.0020,-36.77,-0.0499,0.35,0,-4.50,-73.18,0,2,0,0,0,0
+0_0,0_0,2,3, fk,04-08 11:45:04,04-08 11:46:55,none,none,none,none,0.00,04-08 15:28:10,221,N917304267,LAYERUSDT,short,stopEarn,,11.74,0.0171,30.25,0.0452,-2.24,-0.0032,0.35,0,332.66,-62.00,0,2,0,0,0,0
+0_0,0_0,5,4, fk,04-08 12:01:51,04-08 12:02:01,none,none,none,none,0.00,04-08 15:31:41,209,N690810132,SIRENUSDT,long,oppo,,-26.97,-0.0385,0.35,0.0005,-28.01,-0.0400,0.35,0,339.66,-89.53,0,2,0,0,1,0
+0_0,0_0,2,3, fk,04-08 11:45:04,04-08 11:46:54,none,none,none,none,0.00,04-08 16:30:27,283,N884153600,USUALUSDT,long,stopLoss,,-35.29,-0.0504,17.11,0.0244,-35.29,-0.0504,0.35,0,389.14,-97.86,0,3,0,0,1,0

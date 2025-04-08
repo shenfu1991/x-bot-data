@@ -1,0 +1,2 @@
+same,same2,lc,sc,funcName,bootTime,openTime,addTime1,addTime2,addTime3,halfClose,halfEarn,closeTime,duration,name,symbol,side,closeType,openInfo,earn,earnRate,maxEarn,maxEarnRate,maxLoss,lossRate,x,Double,Fsum,GSum,stopEarn,stopLoss,stopLossWMA,stopLossWMA_B,oppo,subStatus
+0_0,0_0,1,0, hl9,04-07 22:51:39,04-07 22:51:49,none,none,none,none,0.00,04-08 07:25:29,513,N550501930,AXLUSDT,long,stopEarn,,30.39,0.0434,42.23,0.0603,-17.87,-0.0255,0.35,0,30.39,29.83,0,0,0,0,0,0

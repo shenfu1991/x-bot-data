@@ -6,6 +6,8 @@ import pandas as pd
 import pytz
 import numpy as np
 
+mins = 3
+
 def add_dashed_lines(df, panel, levels):
     add_plots = []
     for level in levels:
@@ -46,7 +48,7 @@ def calculate_adx(high, low, close, window=14):
     return pd.Series(adx, name='ADX')
 
 def round_to_nearest_3min(dt):
-    rounded = dt - timedelta(minutes=dt.minute % 3,
+    rounded = dt - timedelta(minutes=dt.minute % mins,
                              seconds=dt.second,
                              microseconds=dt.microsecond)
     return rounded
@@ -84,10 +86,10 @@ def process_csv(file_path):
             open_timestamp = int(open_time.timestamp() * 1000)
             close_timestamp = int(close_time.timestamp() * 1000)
             
-            dateOpen = open_timestamp - 1000 * 60 * 60 * 8
+            dateOpen = open_timestamp - 1000 * 60 * 60 * 2
             dateClose = close_timestamp + 1000 * 60 * 60 * 2
 
-            klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval=3m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
+            klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval={mins}m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
             response = requests.get(klines_url)
             klines_data = response.json()
 
@@ -182,7 +184,7 @@ def process_csv(file_path):
                     fig_height = fig_width / 1.4
                     
                     fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
-                    ax[0].set_title(additional_text, fontsize=30, pad=20)
+                    ax[0].set_title(additional_text, fontsize=50, pad=20)
                     
                     ax[0].tick_params(axis='x', labelsize=20)
                     ax[0].tick_params(axis='y', labelsize=20)
@@ -196,4 +198,7 @@ def process_csv(file_path):
                 print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
 
 # Call the function with the CSV file path
-process_csv('qcy_1.csv')
+process_csv('qcx_4.csv')
+#process_csv('earnings.csv')
+
+#process_csv('negative_earnings.csv')

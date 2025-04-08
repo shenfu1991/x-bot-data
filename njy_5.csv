@@ -1,0 +1,5 @@
+same,same2,lc,sc,funcName,bootTime,openTime,addTime1,addTime2,addTime3,halfClose,halfEarn,closeTime,duration,name,symbol,side,closeType,openInfo,earn,earnRate,maxEarn,maxEarnRate,maxLoss,lossRate,x,Double,Fsum,GSum,stopEarn,stopLoss,stopLossWMA,stopLossWMA_B,oppo,subStatus
+0_0,0_0,2,15, hl6,04-08 11:46:43,04-08 11:46:53,none,none,none,none,0.00,04-08 12:26:14,39,N941433489,RAREUSDT,long,oppo,,-6.83,-0.0098,0.10,0.0001,-9.17,-0.0131,0.35,0,-0.87,-7.39,0,0,0,0,1,0
+0_0,0_0,2,17, hl6,04-08 11:54:04,04-08 11:54:14,none,none,none,none,0.00,04-08 12:28:14,34,N398966975,AXLUSDT,short,oppo,,-7.10,-0.0100,0.44,0.0006,-7.10,-0.0100,0.35,0,-2.52,-7.66,0,0,0,0,2,0
+0_0,0_0,2,15, hl6,04-08 11:46:43,04-08 11:46:53,none,none,none,none,0.00,04-08 13:11:10,84,N653278718,MAVIAUSDT,short,stopLoss,,-35.03,-0.0477,11.12,0.0161,-35.03,-0.0477,0.35,0,53.44,-35.59,0,1,0,0,2,0
+0_0,0_0,2,17, hl6,04-08 11:54:04,04-08 12:28:19,none,none,none,none,0.00,04-08 14:16:34,108,N398966975,AXLUSDT,long,oppo,,-11.20,-0.0160,1.32,0.0019,-11.20,-0.0160,0.35,0,411.95,-55.01,0,1,0,0,3,0
