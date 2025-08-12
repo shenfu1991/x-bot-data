@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "qcx_3.csv"
+fileName = "hzx_4.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -21,7 +21,7 @@ def add_dashed_lines(df, panel, levels):
     """添加虚线到图表"""
     if not isinstance(levels, (list, tuple, np.ndarray)):
         raise ValueError("levels must be a list, tuple or numpy array")
-    
+
     add_plots = []
     for level in levels:
         if not isinstance(level, (int, float)):
@@ -100,14 +100,14 @@ def process_csv(file_path):
                 add_time3_str = row['addTime3']
                 side = row['side']
                 SLstatus = row['SLstatus']
-                
+
                 # 转换收益值为浮点数
                 earn = float(row['earn'])
                 me = float(row['maxEarn'])
-                
+
                 if passLoss and earn < 20:
                     continue
-                    
+
                 earnRate = row['earnRate']
                 cp = row['closeType']
                 maxEarnRate = row['maxEarnRate']
@@ -118,10 +118,10 @@ def process_csv(file_path):
                 tz = pytz.timezone('Asia/Shanghai')
                 open_time = tz.localize(datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S'))
                 close_time = tz.localize(datetime.strptime(f"{current_year}-{close_time_str}", '%Y-%m-%d %H:%M:%S'))
-                
+
                 open_timestamp = int(open_time.timestamp() * 1000)
                 close_timestamp = int(close_time.timestamp() * 1000)
-                
+
                 dateOpen = open_timestamp - 1000 * 60 * 60 * pading
                 dateClose = close_timestamp + 1000 * 60 * 60 * pading
 
@@ -140,19 +140,19 @@ def process_csv(file_path):
                     df.set_index('timestamp', inplace=True)
                     df = df[['open', 'high', 'low', 'close', 'volume']]
                     df = df.astype(float)
-                    
+
                     # 确保时区转换正确
                     utc_plus_8 = pytz.timezone('Asia/Shanghai')
                     df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
-                    
+
                     additional_text = f"【{SLstatus}】{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
-                    
+
                     mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
                     s = mpf.make_mpf_style(marketcolors=mc)
 
                     rounded_open_time = round_to_nearest_3min(open_time)
                     rounded_close_time = round_to_nearest_3min(close_time)
-                    
+
                     rounded_open_timestamp = int(rounded_open_time.timestamp() * 1000)
                     rounded_close_timestamp = int(rounded_close_time.timestamp() * 1000)
 
@@ -165,7 +165,7 @@ def process_csv(file_path):
                                 add_timestamps.append(int(rounded_add_time.timestamp() * 1000))
                             except ValueError:
                                 continue
-                    
+
                     open_close_markers = [np.nan] * len(df)
                     add_markers = [np.nan] * len(df)
                     for i, row in df.iterrows():
@@ -174,13 +174,13 @@ def process_csv(file_path):
                             open_close_markers[df.index.get_loc(i)] = row['high']
                         if ts in add_timestamps:
                             add_markers[df.index.get_loc(i)] = row['high']
-                    
+
                     # 添加EMA指标
                     df['EMA5'] = df['close'].ewm(span=5, adjust=False).mean()
                     df['EMA20'] = df['close'].ewm(span=20, adjust=False).mean()
                     df['EMA30'] = df['close'].ewm(span=30, adjust=False).mean()
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
-                 
+
                     valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                     valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
 
@@ -192,22 +192,22 @@ def process_csv(file_path):
                         if valid_add_markers:
                             add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black')
                             add_plots.append(add_plot_additional)
-                        
+
                         # 添加EMA线
                         add_plot_ema5 = mpf.make_addplot(df['EMA5'], linestyle='--', color='red')
                         add_plot_ema20 = mpf.make_addplot(df['EMA20'], linestyle='--', color='orange')
                         add_plot_ema30 = mpf.make_addplot(df['EMA30'], linestyle='--', color='purple')
                         add_plot_ema50 = mpf.make_addplot(df['EMA50'], linestyle='--', color='green')
                         add_plots.extend([add_plot_ema5, add_plot_ema20, add_plot_ema30, add_plot_ema50])
-                        
+
                         num_candles = len(df)
                         fig_width = max(15, num_candles // 2)
                         fig_height = fig_width / 1.4
-                        
+
                         try:
                             fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
                             ax[0].set_title(additional_text, fontsize=fontSize, pad=20)
-                            
+
                             ax[0].tick_params(axis='x', labelsize=20)
                             ax[0].tick_params(axis='y', labelsize=20)
 
@@ -216,7 +216,7 @@ def process_csv(file_path):
                             safe_open_time = open_time_str.replace(':', '-').replace(' ', '_')
                             safe_close_time = close_time_str.replace(':', '-').replace(' ', '_')
                             output_file = f"{safe_symbol}_{safe_open_time}_{safe_close_time}.png"
-                            
+
                             fig.savefig(output_file)
                             print(f"K-line chart saved to {output_file}")
                         except Exception as e:
