@@ -8,11 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-<<<<<<< HEAD
 fileName = "tcx_3.csv"
-=======
-fileName = "tcx_4.csv"
->>>>>>> 50fe7cc9dd2e4ac51c3f89204ad9bc94a04e363f
 pading = 2
 fontSize = 50
 passLoss = False
