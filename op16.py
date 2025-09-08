@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "hzx_4.csv"
+fileName = "tcx_3.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -72,7 +72,7 @@ def round_to_nearest_3min(dt):
                              microseconds=dt.microsecond)
     return rounded
 
-def calculate_macd(data, fast=14, slow=30, signal=9):
+def calculate_macd(data, fast=12, slow=26, signal=9):
     """计算MACD指标"""
     if not isinstance(data, pd.Series):
         data = pd.Series(data)
@@ -181,6 +181,9 @@ def process_csv(file_path):
                     df['EMA30'] = df['close'].ewm(span=30, adjust=False).mean()
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
 
+                    # 计算MACD指标
+                    macd, signal_line, histogram = calculate_macd(df['close'])
+
                     valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                     valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
 
@@ -199,6 +202,21 @@ def process_csv(file_path):
                         add_plot_ema30 = mpf.make_addplot(df['EMA30'], linestyle='--', color='purple')
                         add_plot_ema50 = mpf.make_addplot(df['EMA50'], linestyle='--', color='green')
                         add_plots.extend([add_plot_ema5, add_plot_ema20, add_plot_ema30, add_plot_ema50])
+
+                        # 添加MACD指标到副图
+                        ap0 = [
+                            mpf.make_addplot(macd, panel=1, color='fuchsia', ylabel='MACD'),
+                            mpf.make_addplot(signal_line, panel=1, color='dodgerblue'),
+                        ]
+
+                        # 为MACD直方图设置颜色
+                        colors = ['red' if h < 0 else 'green' for h in histogram]
+                        ap1 = [
+                            mpf.make_addplot(histogram, type='bar', panel=1, color=colors)
+                        ]
+
+                        add_plots.extend(ap0)
+                        add_plots.extend(ap1)
 
                         num_candles = len(df)
                         fig_width = max(15, num_candles // 2)
