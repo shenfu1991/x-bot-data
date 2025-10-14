@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "tcx_3.csv"
+fileName = "njx_3.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -16,6 +16,13 @@ passLoss = False
 if mins == 15:
     pading = 8
     fontSize = 25
+
+# ---
+# Add customizable MACD settings
+macd_fast = 12
+macd_slow = 26
+macd_signal = 9
+# ---
 
 def add_dashed_lines(df, panel, levels):
     """添加虚线到图表"""
@@ -181,8 +188,10 @@ def process_csv(file_path):
                     df['EMA30'] = df['close'].ewm(span=30, adjust=False).mean()
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
 
-                    # 计算MACD指标
-                    macd, signal_line, histogram = calculate_macd(df['close'])
+                    # ---
+                    # Use the new global variables to calculate MACD
+                    macd, signal_line, histogram = calculate_macd(df['close'], fast=macd_fast, slow=macd_slow, signal=macd_signal)
+                    # ---
 
                     valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                     valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
