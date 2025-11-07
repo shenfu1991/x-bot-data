@@ -8,10 +8,11 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "njx_3.csv"
+fileName = "hzx_5.csv"
 pading = 2
 fontSize = 50
 passLoss = False
+#passLoss = True
 
 if mins == 15:
     pading = 8
