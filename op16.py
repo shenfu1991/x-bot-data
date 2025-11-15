@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "hzx_5.csv"
+fileName = "hzy_3.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -107,7 +107,8 @@ def process_csv(file_path):
                 add_time2_str = row['addTime3']
                 add_time3_str = row['addTime3']
                 side = row['side']
-                SLstatus = row['SLstatus']
+                tdLong = row['tdLong']
+                tdShort = row['tdShort']
 
                 # 转换收益值为浮点数
                 earn = float(row['earn'])
@@ -153,7 +154,7 @@ def process_csv(file_path):
                     utc_plus_8 = pytz.timezone('Asia/Shanghai')
                     df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
 
-                    additional_text = f"【{SLstatus}】{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
+                    additional_text = f"[{tdLong}/{tdShort}]{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
 
                     mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
                     s = mpf.make_mpf_style(marketcolors=mc)
