@@ -8,11 +8,11 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "msx_5.csv"
+fileName = "hzx_2_sorted.csv"
 pading = 2
 fontSize = 50
-#passLoss = False
-passLoss = True
+passLoss = False
+#passLoss = True
 minPassLoss = 40
 
 if mins == 15:
@@ -235,7 +235,7 @@ def process_csv(file_path):
                         fig_height = fig_width / 1.4
 
                         try:
-                            fig, ax = mpf.plot(df, type='candle', volume=True, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
+                            fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
                             ax[0].set_title(additional_text, fontsize=fontSize, pad=20)
 
                             ax[0].tick_params(axis='x', labelsize=20)
