@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "tcx_4.csv"
+fileName = "tcy_1.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -20,7 +20,7 @@ if mins == 15:
     fontSize = 25
 
 # ---
-# Add customizable MACD settings
+# MACD 设置
 macd_fast = 12
 macd_slow = 26
 macd_signal = 9
@@ -39,8 +39,8 @@ def add_dashed_lines(df, panel, levels):
         add_plots.append(add_plot)
     return add_plots
 
-def calculate_adx(high, low, close, window=14):
-    """计算ADX指标"""
+def calculate_dmi(high, low, close, window=14):
+    """计算 DMI 指标 (返回 ADX, PDI, MDI)"""
     high = pd.Series(high)
     low = pd.Series(low)
     close = pd.Series(close)
@@ -59,6 +59,7 @@ def calculate_adx(high, low, close, window=14):
     pos_dm = pd.Series(pos_dm, index=up.index)
     neg_dm = pd.Series(neg_dm, index=down.index)
 
+    # 使用 Wilder 的平滑方式 (alpha=1/window)
     tr_smooth = true_range.ewm(alpha=1/window, adjust=False).mean()
     pos_dm_smooth = pos_dm.ewm(alpha=1/window, adjust=False).mean()
     neg_dm_smooth = neg_dm.ewm(alpha=1/window, adjust=False).mean()
@@ -67,10 +68,9 @@ def calculate_adx(high, low, close, window=14):
     neg_di = 100 * neg_dm_smooth / tr_smooth
 
     dx = 100 * abs(pos_di - neg_di) / (pos_di + neg_di + 1e-8)
-
     adx = dx.ewm(alpha=1/window, adjust=False).mean()
 
-    return pd.Series(adx, name='ADX')
+    return pd.Series(adx, name='ADX'), pd.Series(pos_di, name='PDI'), pd.Series(neg_di, name='MDI')
 
 def round_to_nearest_3min(dt):
     """四舍五入到最近的3分钟间隔"""
@@ -111,7 +111,6 @@ def process_csv(file_path):
                 tdLong = row['tdLong']
                 tdShort = row['tdShort']
 
-                # 转换收益值为浮点数
                 earn = float(row['earn'])
                 me = float(row['maxEarn'])
 
@@ -124,7 +123,6 @@ def process_csv(file_path):
                 funcName = row["funcName"]
 
                 current_year = datetime.now().year
-                # 添加时区信息
                 tz = pytz.timezone('Asia/Shanghai')
                 open_time = tz.localize(datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S'))
                 close_time = tz.localize(datetime.strptime(f"{current_year}-{close_time_str}", '%Y-%m-%d %H:%M:%S'))
@@ -151,7 +149,6 @@ def process_csv(file_path):
                     df = df[['open', 'high', 'low', 'close', 'volume']]
                     df = df.astype(float)
 
-                    # 确保时区转换正确
                     utc_plus_8 = pytz.timezone('Asia/Shanghai')
                     df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
 
@@ -178,23 +175,21 @@ def process_csv(file_path):
 
                     open_close_markers = [np.nan] * len(df)
                     add_markers = [np.nan] * len(df)
-                    for i, row in df.iterrows():
+                    for i, r_val in df.iterrows():
                         ts = int(i.timestamp() * 1000)
                         if ts == rounded_open_timestamp or ts == rounded_close_timestamp:
-                            open_close_markers[df.index.get_loc(i)] = row['high']
+                            open_close_markers[df.index.get_loc(i)] = r_val['high']
                         if ts in add_timestamps:
-                            add_markers[df.index.get_loc(i)] = row['high']
+                            add_markers[df.index.get_loc(i)] = r_val['high']
 
-                    # 添加EMA指标
+                    # 指标计算
                     df['EMA5'] = df['close'].ewm(span=5, adjust=False).mean()
                     df['EMA20'] = df['close'].ewm(span=20, adjust=False).mean()
                     df['EMA30'] = df['close'].ewm(span=30, adjust=False).mean()
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
 
-                    # ---
-                    # Use the new global variables to calculate MACD
                     macd, signal_line, histogram = calculate_macd(df['close'], fast=macd_fast, slow=macd_slow, signal=macd_signal)
-                    # ---
+                    adx, pdi, mdi = calculate_dmi(df['high'], df['low'], df['close'])
 
                     valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                     valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
@@ -208,40 +203,45 @@ def process_csv(file_path):
                             add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black')
                             add_plots.append(add_plot_additional)
 
-                        # 添加EMA线
-                        add_plot_ema5 = mpf.make_addplot(df['EMA5'], linestyle='--', color='red')
-                        add_plot_ema20 = mpf.make_addplot(df['EMA20'], linestyle='--', color='orange')
-                        add_plot_ema30 = mpf.make_addplot(df['EMA30'], linestyle='--', color='purple')
-                        add_plot_ema50 = mpf.make_addplot(df['EMA50'], linestyle='--', color='green')
-                        add_plots.extend([add_plot_ema5, add_plot_ema20, add_plot_ema30, add_plot_ema50])
+                        # 主图 EMA
+                        add_plots.extend([
+                            mpf.make_addplot(df['EMA5'], linestyle='--', color='red'),
+                            mpf.make_addplot(df['EMA20'], linestyle='--', color='orange'),
+                            mpf.make_addplot(df['EMA30'], linestyle='--', color='purple'),
+                            mpf.make_addplot(df['EMA50'], linestyle='--', color='green')
+                        ])
 
-                        # 添加MACD指标到副图
-                        ap0 = [
+                        # Panel 1: MACD
+                        colors = ['red' if h < 0 else 'green' for h in histogram]
+                        add_plots.extend([
                             mpf.make_addplot(macd, panel=1, color='fuchsia', ylabel='MACD'),
                             mpf.make_addplot(signal_line, panel=1, color='dodgerblue'),
-                        ]
-
-                        # 为MACD直方图设置颜色
-                        colors = ['red' if h < 0 else 'green' for h in histogram]
-                        ap1 = [
                             mpf.make_addplot(histogram, type='bar', panel=1, color=colors)
-                        ]
+                        ])
 
-                        add_plots.extend(ap0)
-                        add_plots.extend(ap1)
+                        # Panel 2: DMI (新增)
+                        add_plots.extend([
+                            mpf.make_addplot(adx, panel=2, color='black', ylabel='DMI/ADX'),
+                            mpf.make_addplot(pdi, panel=2, color='green'),
+                            mpf.make_addplot(mdi, panel=2, color='red'),
+                        ])
+                        # 在 Panel 2 增加 DMI 常用水平参考线 (20, 40)
+                        add_plots.extend(add_dashed_lines(df, panel=2, levels=[20, 40]))
 
                         num_candles = len(df)
                         fig_width = max(15, num_candles // 2)
-                        fig_height = fig_width / 1.4
+                        fig_height = fig_width / 1.2 # 增加一点高度以容纳三个面板
 
                         try:
-                            fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
-                            ax[0].set_title(additional_text, fontsize=fontSize, pad=20)
+                            # 明确指定面板比例，给 DMI 留出空间
+                            fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True,
+                                             style=s, addplot=add_plots, figsize=(fig_width, fig_height),
+                                             panel_ratios=(6, 2, 2))
 
+                            ax[0].set_title(additional_text, fontsize=fontSize, pad=20)
                             ax[0].tick_params(axis='x', labelsize=20)
                             ax[0].tick_params(axis='y', labelsize=20)
 
-                            # 确保文件名有效
                             safe_symbol = "".join(c for c in symbol if c.isalnum() or c in ('_', '-'))
                             safe_open_time = open_time_str.replace(':', '-').replace(' ', '_')
                             safe_close_time = close_time_str.replace(':', '-').replace(' ', '_')
@@ -252,14 +252,13 @@ def process_csv(file_path):
                         except Exception as e:
                             print(f"Error generating chart for {symbol}: {e}")
                     else:
-                        print(f"No valid markers found for {symbol} from {open_time_str} to {close_time_str}")
+                        print(f"No valid markers found for {symbol}")
                 else:
-                    print(f"No data found for {symbol} from {open_time_str} to {close_time_str}")
+                    print(f"No data found for {symbol}")
             except Exception as e:
-                print(f"Error processing row: {row}. Error: {e}")
+                print(f"Error processing row: {e}")
                 continue
 
-# 主程序
 if __name__ == "__main__":
     print(f"Processing file: {fileName}")
     try:

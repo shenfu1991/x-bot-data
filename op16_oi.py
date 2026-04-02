@@ -8,23 +8,14 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "tcx_4.csv"
+fileName = "msy_3.csv"
 pading = 2
 fontSize = 50
 passLoss = False
-# passLoss = True
-minPassLoss = 30
 
 if mins == 15:
     pading = 8
     fontSize = 25
-
-# ---
-# Add customizable MACD settings
-macd_fast = 12
-macd_slow = 26
-macd_signal = 9
-# ---
 
 def add_dashed_lines(df, panel, levels):
     """添加虚线到图表"""
@@ -81,17 +72,6 @@ def round_to_nearest_3min(dt):
                              microseconds=dt.microsecond)
     return rounded
 
-def calculate_macd(data, fast=12, slow=26, signal=9):
-    """计算MACD指标"""
-    if not isinstance(data, pd.Series):
-        data = pd.Series(data)
-    exp1 = data.ewm(span=fast, adjust=False).mean()
-    exp2 = data.ewm(span=slow, adjust=False).mean()
-    macd = exp1 - exp2
-    signal_line = macd.ewm(span=signal, adjust=False).mean()
-    histogram = macd - signal_line
-    return macd, signal_line, histogram
-
 def process_csv(file_path):
     """处理CSV文件并生成图表"""
     if not os.path.exists(file_path):
@@ -108,14 +88,13 @@ def process_csv(file_path):
                 add_time2_str = row['addTime3']
                 add_time3_str = row['addTime3']
                 side = row['side']
-                tdLong = row['tdLong']
-                tdShort = row['tdShort']
+                SLstatus = row['SLstatus']
 
                 # 转换收益值为浮点数
                 earn = float(row['earn'])
                 me = float(row['maxEarn'])
 
-                if passLoss and earn < minPassLoss:
+                if passLoss and earn < 20:
                     continue
 
                 earnRate = row['earnRate']
@@ -141,7 +120,7 @@ def process_csv(file_path):
                     response.raise_for_status()
                     klines_data = response.json()
                 except requests.RequestException as e:
-                    print(f"Error fetching data for {symbol}: {e}")
+                    print(f"Error fetching klines data for {symbol}: {e}")
                     continue
 
                 if len(klines_data) > 0:
@@ -155,7 +134,28 @@ def process_csv(file_path):
                     utc_plus_8 = pytz.timezone('Asia/Shanghai')
                     df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
 
-                    additional_text = f"[{tdLong}/{tdShort}]{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
+                    # 获取持仓量数据
+                    try:
+                        oi_url = f"https://fapi.binance.com/futures/data/openInterestHist?symbol={symbol}&period={mins}m&startTime={dateOpen}&endTime={dateClose}"
+                        oi_response = requests.get(oi_url)
+                        oi_response.raise_for_status()
+                        oi_data = oi_response.json()
+                    except requests.RequestException as e:
+                        print(f"Error fetching open interest data for {symbol}: {e}")
+                        continue
+
+                    if len(oi_data) > 0:
+                        oi_df = pd.DataFrame(oi_data)
+                        oi_df['timestamp'] = pd.to_datetime(oi_df['timestamp'], unit='ms')
+                        oi_df.set_index('timestamp', inplace=True)
+                        # oi_df.index = oi_df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
+                        oi_df['sumOpenInterestValue'] = oi_df['sumOpenInterestValue'].astype(float)
+
+                        # 将持仓量数据合并到主数据帧
+                        df = df.join(oi_df['sumOpenInterestValue'])
+
+
+                    additional_text = f"【{SLstatus}】{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
 
                     mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
                     s = mpf.make_mpf_style(marketcolors=mc)
@@ -191,11 +191,6 @@ def process_csv(file_path):
                     df['EMA30'] = df['close'].ewm(span=30, adjust=False).mean()
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
 
-                    # ---
-                    # Use the new global variables to calculate MACD
-                    macd, signal_line, histogram = calculate_macd(df['close'], fast=macd_fast, slow=macd_slow, signal=macd_signal)
-                    # ---
-
                     valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
                     valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
 
@@ -215,27 +210,22 @@ def process_csv(file_path):
                         add_plot_ema50 = mpf.make_addplot(df['EMA50'], linestyle='--', color='green')
                         add_plots.extend([add_plot_ema5, add_plot_ema20, add_plot_ema30, add_plot_ema50])
 
-                        # 添加MACD指标到副图
-                        ap0 = [
-                            mpf.make_addplot(macd, panel=1, color='fuchsia', ylabel='MACD'),
-                            mpf.make_addplot(signal_line, panel=1, color='dodgerblue'),
-                        ]
+                        # 添加Open Interest到副图
+                        if 'sumOpenInterestValue' in df.columns:
+                            # 为Open Interest直方图设置颜色
+                            oi_colors = ['green' if df['sumOpenInterestValue'].iloc[i] > df['sumOpenInterestValue'].iloc[i-1] else 'red' for i in range(1, len(df))]
+                            oi_colors.insert(0, 'green') # 第一个默认为绿色
 
-                        # 为MACD直方图设置颜色
-                        colors = ['red' if h < 0 else 'green' for h in histogram]
-                        ap1 = [
-                            mpf.make_addplot(histogram, type='bar', panel=1, color=colors)
-                        ]
+                            ap_oi = mpf.make_addplot(df['sumOpenInterestValue'], type='bar', panel=1, color=oi_colors, ylabel='Open Interest')
+                            add_plots.append(ap_oi)
 
-                        add_plots.extend(ap0)
-                        add_plots.extend(ap1)
 
                         num_candles = len(df)
                         fig_width = max(15, num_candles // 2)
                         fig_height = fig_width / 1.4
 
                         try:
-                            fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height))
+                            fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True, style=s, addplot=add_plots, figsize=(fig_width, fig_height), panel_ratios=(3, 1))
                             ax[0].set_title(additional_text, fontsize=fontSize, pad=20)
 
                             ax[0].tick_params(axis='x', labelsize=20)
