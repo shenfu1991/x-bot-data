@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "tcy_1.csv"
+fileName = "ydx_2.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -188,6 +188,10 @@ def process_csv(file_path):
                     df['EMA30'] = df['close'].ewm(span=30, adjust=False).mean()
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
 
+                    # 新增自定义指标：(open+close)/2 的 10 周期 SMA
+                    df['custom_mid'] = (df['open'] + df['close']) / 2
+                    df['custom_sma'] = df['custom_mid'].rolling(window=10).mean()
+
                     macd, signal_line, histogram = calculate_macd(df['close'], fast=macd_fast, slow=macd_slow, signal=macd_signal)
                     adx, pdi, mdi = calculate_dmi(df['high'], df['low'], df['close'])
 
@@ -203,12 +207,14 @@ def process_csv(file_path):
                             add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black')
                             add_plots.append(add_plot_additional)
 
-                        # 主图 EMA
+                        # 主图 EMA 及自定义 SMA
                         add_plots.extend([
                             mpf.make_addplot(df['EMA5'], linestyle='--', color='red'),
                             mpf.make_addplot(df['EMA20'], linestyle='--', color='orange'),
                             mpf.make_addplot(df['EMA30'], linestyle='--', color='purple'),
-                            mpf.make_addplot(df['EMA50'], linestyle='--', color='green')
+                            mpf.make_addplot(df['EMA50'], linestyle='--', color='green'),
+                            # 自定义划线：青色实线
+                            mpf.make_addplot(df['custom_sma'], color='cyan', width=1.5)
                         ])
 
                         # Panel 1: MACD
