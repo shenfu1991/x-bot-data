@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "tcy_5.csv"
+fileName = "hzx_3.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -129,13 +129,13 @@ def process_csv(file_path):
                 tz = pytz.timezone('Asia/Shanghai')
 
                 # 时间解析
-                open_time = tz.localize(datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S'))
-                close_time = tz.localize(datetime.strptime(f"{current_year}-{close_time_str}", '%Y-%m-%d %H:%M:%S'))
+                open_time = tz.localize(datetime.strptime(f"{open_time_str}", '%Y-%m-%d %H:%M:%S'))
+                close_time = tz.localize(datetime.strptime(f"{close_time_str}", '%Y-%m-%d %H:%M:%S'))
 
                 # GBFirstBootTime 时间解析 (模仿 openTime)
                 rounded_boot_timestamp = None
                 if boot_time_str and boot_time_str not in ['0', '00-00 00:00:00']:
-                    boot_time = tz.localize(datetime.strptime(f"{current_year}-{boot_time_str}", '%Y-%m-%d %H:%M:%S'))
+                    boot_time = tz.localize(datetime.strptime(f"{boot_time_str}", '%Y-%m-%d %H:%M:%S'))
                     rounded_boot_time = round_to_nearest_3min(boot_time)
                     rounded_boot_timestamp = int(rounded_boot_time.timestamp() * 1000)
 
