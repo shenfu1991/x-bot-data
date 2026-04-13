@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "ydx_2.csv"
+fileName = "tcy_5.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -104,9 +104,12 @@ def process_csv(file_path):
                 symbol = row['symbol']
                 open_time_str = row['openTime']
                 close_time_str = row['closeTime']
+                # 新增 GBFirstBootTime 处理
+                boot_time_str = row.get('GBFirstBootTime', '0')
+
                 add_time1_str = row['addTime1']
-                add_time2_str = row['addTime3']
-                add_time3_str = row['addTime3']
+                add_time2_str = row.get('addTime2', 'none') # 修正了原代码中可能的索引错误
+                add_time3_str = row.get('addTime3', 'none')
                 side = row['side']
                 tdLong = row['tdLong']
                 tdShort = row['tdShort']
@@ -124,17 +127,28 @@ def process_csv(file_path):
 
                 current_year = datetime.now().year
                 tz = pytz.timezone('Asia/Shanghai')
+
+                # 时间解析
                 open_time = tz.localize(datetime.strptime(f"{current_year}-{open_time_str}", '%Y-%m-%d %H:%M:%S'))
                 close_time = tz.localize(datetime.strptime(f"{current_year}-{close_time_str}", '%Y-%m-%d %H:%M:%S'))
 
+                # GBFirstBootTime 时间解析 (模仿 openTime)
+                rounded_boot_timestamp = None
+                if boot_time_str and boot_time_str not in ['0', '00-00 00:00:00']:
+                    boot_time = tz.localize(datetime.strptime(f"{current_year}-{boot_time_str}", '%Y-%m-%d %H:%M:%S'))
+                    rounded_boot_time = round_to_nearest_3min(boot_time)
+                    rounded_boot_timestamp = int(rounded_boot_time.timestamp() * 1000)
+
+                boot_timestamp = int(boot_time.timestamp() * 1000)
                 open_timestamp = int(open_time.timestamp() * 1000)
                 close_timestamp = int(close_time.timestamp() * 1000)
 
+                dateBoot = boot_timestamp - 1000 * 60 * 60 * pading
                 dateOpen = open_timestamp - 1000 * 60 * 60 * pading
                 dateClose = close_timestamp + 1000 * 60 * 60 * pading
 
                 try:
-                    klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval={mins}m&contractType=PERPETUAL&pair={symbol}&startTime={dateOpen}&endTime={dateClose}"
+                    klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval={mins}m&contractType=PERPETUAL&pair={symbol}&startTime={dateBoot}&endTime={dateClose}"
                     response = requests.get(klines_url)
                     response.raise_for_status()
                     klines_data = response.json()
@@ -164,10 +178,10 @@ def process_csv(file_path):
                     rounded_close_timestamp = int(rounded_close_time.timestamp() * 1000)
 
                     add_timestamps = []
-                    for add_time_str in [add_time1_str, add_time2_str, add_time3_str]:
-                        if add_time_str.lower() != 'none':
+                    for t_str in [add_time1_str, add_time2_str, add_time3_str]:
+                        if t_str and t_str.lower() != 'none':
                             try:
-                                add_time = tz.localize(datetime.strptime(f"{current_year}-{add_time_str}", '%Y-%m-%d %H:%M:%S'))
+                                add_time = tz.localize(datetime.strptime(f"{current_year}-{t_str}", '%Y-%m-%d %H:%M:%S'))
                                 rounded_add_time = round_to_nearest_3min(add_time)
                                 add_timestamps.append(int(rounded_add_time.timestamp() * 1000))
                             except ValueError:
@@ -175,12 +189,17 @@ def process_csv(file_path):
 
                     open_close_markers = [np.nan] * len(df)
                     add_markers = [np.nan] * len(df)
+                    boot_markers = [np.nan] * len(df) # 新增 Boot 标记列表
+
                     for i, r_val in df.iterrows():
                         ts = int(i.timestamp() * 1000)
                         if ts == rounded_open_timestamp or ts == rounded_close_timestamp:
                             open_close_markers[df.index.get_loc(i)] = r_val['high']
                         if ts in add_timestamps:
                             add_markers[df.index.get_loc(i)] = r_val['high']
+                        # 检查是否匹配 Boot 时间
+                        if rounded_boot_timestamp and ts == rounded_boot_timestamp:
+                            boot_markers[df.index.get_loc(i)] = r_val['high']
 
                     # 指标计算
                     df['EMA5'] = df['close'].ewm(span=5, adjust=False).mean()
@@ -188,77 +207,76 @@ def process_csv(file_path):
                     df['EMA30'] = df['close'].ewm(span=30, adjust=False).mean()
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
 
-                    # 新增自定义指标：(open+close)/2 的 10 周期 SMA
                     df['custom_mid'] = (df['open'] + df['close']) / 2
                     df['custom_sma'] = df['custom_mid'].rolling(window=10).mean()
 
                     macd, signal_line, histogram = calculate_macd(df['close'], fast=macd_fast, slow=macd_slow, signal=macd_signal)
                     adx, pdi, mdi = calculate_dmi(df['high'], df['low'], df['close'])
 
-                    valid_open_close_markers = [marker for marker in open_close_markers if not np.isnan(marker)]
-                    valid_add_markers = [marker for marker in add_markers if not np.isnan(marker)]
+                    add_plots = []
 
-                    if valid_open_close_markers or valid_add_markers:
-                        add_plots = []
-                        if valid_open_close_markers:
-                            add_plot_open_close = mpf.make_addplot(open_close_markers, type='scatter', markersize=400, marker='o', color='blue')
-                            add_plots.append(add_plot_open_close)
-                        if valid_add_markers:
-                            add_plot_additional = mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black')
-                            add_plots.append(add_plot_additional)
+                    # 原始标记：开平仓 (蓝色)
+                    valid_open_close = [m for m in open_close_markers if not np.isnan(m)]
+                    if valid_open_close:
+                        add_plots.append(mpf.make_addplot(open_close_markers, type='scatter', markersize=400, marker='o', color='blue'))
 
-                        # 主图 EMA 及自定义 SMA
-                        add_plots.extend([
-                            mpf.make_addplot(df['EMA5'], linestyle='--', color='red'),
-                            mpf.make_addplot(df['EMA20'], linestyle='--', color='orange'),
-                            mpf.make_addplot(df['EMA30'], linestyle='--', color='purple'),
-                            mpf.make_addplot(df['EMA50'], linestyle='--', color='green'),
-                            # 自定义划线：青色实线
-                            mpf.make_addplot(df['custom_sma'], color='cyan', width=1.5)
-                        ])
+                    # 原始标记：加仓 (黑色)
+                    valid_add = [m for m in add_markers if not np.isnan(m)]
+                    if valid_add:
+                        add_plots.append(mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black'))
 
-                        # Panel 1: MACD
-                        colors = ['red' if h < 0 else 'green' for h in histogram]
-                        add_plots.extend([
-                            mpf.make_addplot(macd, panel=1, color='fuchsia', ylabel='MACD'),
-                            mpf.make_addplot(signal_line, panel=1, color='dodgerblue'),
-                            mpf.make_addplot(histogram, type='bar', panel=1, color=colors)
-                        ])
+                    # 新增标记：GBFirstBootTime (红色)
+                    valid_boot = [m for m in boot_markers if not np.isnan(m)]
+                    if valid_boot:
+                        add_plots.append(mpf.make_addplot(boot_markers, type='scatter', markersize=400, marker='o', color='purple'))
 
-                        # Panel 2: DMI (新增)
-                        add_plots.extend([
-                            mpf.make_addplot(adx, panel=2, color='black', ylabel='DMI/ADX'),
-                            mpf.make_addplot(pdi, panel=2, color='green'),
-                            mpf.make_addplot(mdi, panel=2, color='red'),
-                        ])
-                        # 在 Panel 2 增加 DMI 常用水平参考线 (20, 40)
-                        add_plots.extend(add_dashed_lines(df, panel=2, levels=[20, 40]))
+                    # 主图 EMA 及自定义 SMA
+                    add_plots.extend([
+                        mpf.make_addplot(df['EMA5'], linestyle='--', color='red'),
+                        mpf.make_addplot(df['EMA20'], linestyle='--', color='orange'),
+                        mpf.make_addplot(df['EMA30'], linestyle='--', color='purple'),
+                        mpf.make_addplot(df['EMA50'], linestyle='--', color='green'),
+                        mpf.make_addplot(df['custom_sma'], color='cyan', width=1.5)
+                    ])
 
-                        num_candles = len(df)
-                        fig_width = max(15, num_candles // 2)
-                        fig_height = fig_width / 1.2 # 增加一点高度以容纳三个面板
+                    # Panel 1: MACD
+                    colors = ['red' if h < 0 else 'green' for h in histogram]
+                    add_plots.extend([
+                        mpf.make_addplot(macd, panel=1, color='fuchsia', ylabel='MACD'),
+                        mpf.make_addplot(signal_line, panel=1, color='dodgerblue'),
+                        mpf.make_addplot(histogram, type='bar', panel=1, color=colors)
+                    ])
 
-                        try:
-                            # 明确指定面板比例，给 DMI 留出空间
-                            fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True,
-                                             style=s, addplot=add_plots, figsize=(fig_width, fig_height),
-                                             panel_ratios=(6, 2, 2))
+                    # Panel 2: DMI
+                    add_plots.extend([
+                        mpf.make_addplot(adx, panel=2, color='black', ylabel='DMI/ADX'),
+                        mpf.make_addplot(pdi, panel=2, color='green'),
+                        mpf.make_addplot(mdi, panel=2, color='red'),
+                    ])
+                    add_plots.extend(add_dashed_lines(df, panel=2, levels=[20, 40]))
 
-                            ax[0].set_title(additional_text, fontsize=fontSize, pad=20)
-                            ax[0].tick_params(axis='x', labelsize=20)
-                            ax[0].tick_params(axis='y', labelsize=20)
+                    num_candles = len(df)
+                    fig_width = max(15, num_candles // 2)
+                    fig_height = fig_width / 1.2
 
-                            safe_symbol = "".join(c for c in symbol if c.isalnum() or c in ('_', '-'))
-                            safe_open_time = open_time_str.replace(':', '-').replace(' ', '_')
-                            safe_close_time = close_time_str.replace(':', '-').replace(' ', '_')
-                            output_file = f"{safe_symbol}_{safe_open_time}_{safe_close_time}.png"
+                    try:
+                        fig, ax = mpf.plot(df, type='candle', volume=False, returnfig=True,
+                                         style=s, addplot=add_plots, figsize=(fig_width, fig_height),
+                                         panel_ratios=(6, 2, 2))
 
-                            fig.savefig(output_file)
-                            print(f"K-line chart saved to {output_file}")
-                        except Exception as e:
-                            print(f"Error generating chart for {symbol}: {e}")
-                    else:
-                        print(f"No valid markers found for {symbol}")
+                        ax[0].set_title(additional_text, fontsize=fontSize, pad=20)
+                        ax[0].tick_params(axis='x', labelsize=20)
+                        ax[0].tick_params(axis='y', labelsize=20)
+
+                        safe_symbol = "".join(c for c in symbol if c.isalnum() or c in ('_', '-'))
+                        safe_open_time = open_time_str.replace(':', '-').replace(' ', '_')
+                        safe_close_time = close_time_str.replace(':', '-').replace(' ', '_')
+                        output_file = f"{safe_symbol}_{safe_open_time}_{safe_close_time}.png"
+
+                        fig.savefig(output_file)
+                        print(f"K-line chart saved to {output_file}")
+                    except Exception as e:
+                        print(f"Error generating chart for {symbol}: {e}")
                 else:
                     print(f"No data found for {symbol}")
             except Exception as e:
