@@ -8,11 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-<<<<<<< HEAD
-fileName = "hzx_3.csv"
-=======
-fileName = "jkx_1.csv"
->>>>>>> 4ca912f3f2b18612a4ae9f22b7f8bb332c05c42f
+fileName = "tcy_5.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -115,8 +111,6 @@ def process_csv(file_path):
                 add_time2_str = row.get('addTime2', 'none') # 修正了原代码中可能的索引错误
                 add_time3_str = row.get('addTime3', 'none')
                 side = row['side']
-                tdLong = row['tdLong']
-                tdShort = row['tdShort']
 
                 earn = float(row['earn'])
                 me = float(row['maxEarn'])
@@ -170,7 +164,7 @@ def process_csv(file_path):
                     utc_plus_8 = pytz.timezone('Asia/Shanghai')
                     df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
 
-                    additional_text = f"[{tdLong}/{tdShort}]{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
+                    additional_text = f"{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
 
                     mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
                     s = mpf.make_mpf_style(marketcolors=mc)
