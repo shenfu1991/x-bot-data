@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "tcy_5.csv"
+fileName = "hzx_2.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -59,7 +59,6 @@ def calculate_dmi(high, low, close, window=14):
     pos_dm = pd.Series(pos_dm, index=up.index)
     neg_dm = pd.Series(neg_dm, index=down.index)
 
-    # 使用 Wilder 的平滑方式 (alpha=1/window)
     tr_smooth = true_range.ewm(alpha=1/window, adjust=False).mean()
     pos_dm_smooth = pos_dm.ewm(alpha=1/window, adjust=False).mean()
     neg_dm_smooth = neg_dm.ewm(alpha=1/window, adjust=False).mean()
@@ -73,7 +72,7 @@ def calculate_dmi(high, low, close, window=14):
     return pd.Series(adx, name='ADX'), pd.Series(pos_di, name='PDI'), pd.Series(neg_di, name='MDI')
 
 def round_to_nearest_3min(dt):
-    """四舍五入到最近的3分钟间隔"""
+    """四舍五入到最近的时间间隔"""
     if not isinstance(dt, datetime):
         raise ValueError("Input must be a datetime object")
     rounded = dt - timedelta(minutes=dt.minute % mins,
@@ -104,14 +103,11 @@ def process_csv(file_path):
                 symbol = row['symbol']
                 open_time_str = row['openTime']
                 close_time_str = row['closeTime']
-                # 新增 GBFirstBootTime 处理
                 boot_time_str = row.get('GBFirstBootTime', '0')
-
                 add_time1_str = row['addTime1']
-                add_time2_str = row.get('addTime2', 'none') # 修正了原代码中可能的索引错误
+                add_time2_str = row.get('addTime2', 'none')
                 add_time3_str = row.get('addTime3', 'none')
                 side = row['side']
-
                 earn = float(row['earn'])
                 me = float(row['maxEarn'])
 
@@ -126,23 +122,19 @@ def process_csv(file_path):
                 current_year = datetime.now().year
                 tz = pytz.timezone('Asia/Shanghai')
 
-                # 时间解析
                 open_time = tz.localize(datetime.strptime(f"{open_time_str}", '%Y-%m-%d %H:%M:%S'))
                 close_time = tz.localize(datetime.strptime(f"{close_time_str}", '%Y-%m-%d %H:%M:%S'))
 
-                # GBFirstBootTime 时间解析 (模仿 openTime)
                 rounded_boot_timestamp = None
                 if boot_time_str and boot_time_str not in ['0', '00-00 00:00:00']:
                     boot_time = tz.localize(datetime.strptime(f"{boot_time_str}", '%Y-%m-%d %H:%M:%S'))
                     rounded_boot_time = round_to_nearest_3min(boot_time)
                     rounded_boot_timestamp = int(rounded_boot_time.timestamp() * 1000)
 
-                boot_timestamp = int(boot_time.timestamp() * 1000)
                 open_timestamp = int(open_time.timestamp() * 1000)
                 close_timestamp = int(close_time.timestamp() * 1000)
 
-                dateBoot = boot_timestamp - 1000 * 60 * 60 * pading
-                dateOpen = open_timestamp - 1000 * 60 * 60 * pading
+                dateBoot = (rounded_boot_timestamp if rounded_boot_timestamp else open_timestamp) - 1000 * 60 * 60 * pading
                 dateClose = close_timestamp + 1000 * 60 * 60 * pading
 
                 try:
@@ -164,14 +156,13 @@ def process_csv(file_path):
                     utc_plus_8 = pytz.timezone('Asia/Shanghai')
                     df.index = df.index.tz_localize(pytz.utc).tz_convert(utc_plus_8)
 
-                    additional_text = f"{funcName} {symbol} {open_time_str} ----> {close_time_str}  {side}  {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
-
-                    mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
-                    s = mpf.make_mpf_style(marketcolors=mc)
+                    # --- 计算不同高度的偏移逻辑 ---
+                    price_range = df['high'].max() - df['low'].min()
+                    # 每一阶单位设为总振幅的 3%
+                    step = price_range * 0.03
 
                     rounded_open_time = round_to_nearest_3min(open_time)
                     rounded_close_time = round_to_nearest_3min(close_time)
-
                     rounded_open_timestamp = int(rounded_open_time.timestamp() * 1000)
                     rounded_close_timestamp = int(rounded_close_time.timestamp() * 1000)
 
@@ -187,24 +178,29 @@ def process_csv(file_path):
 
                     open_close_markers = [np.nan] * len(df)
                     add_markers = [np.nan] * len(df)
-                    boot_markers = [np.nan] * len(df) # 新增 Boot 标记列表
+                    boot_markers = [np.nan] * len(df)
 
                     for i, r_val in df.iterrows():
                         ts = int(i.timestamp() * 1000)
-                        if ts == rounded_open_timestamp or ts == rounded_close_timestamp:
-                            open_close_markers[df.index.get_loc(i)] = r_val['high']
-                        if ts in add_timestamps:
-                            add_markers[df.index.get_loc(i)] = r_val['high']
-                        # 检查是否匹配 Boot 时间
-                        if rounded_boot_timestamp and ts == rounded_boot_timestamp:
-                            boot_markers[df.index.get_loc(i)] = r_val['high']
+                        idx = df.index.get_loc(i)
 
-                    # 指标计算
+                        # 蓝色点：第1层高度 (High + 1个单位)
+                        if ts == rounded_open_timestamp or ts == rounded_close_timestamp:
+                            open_close_markers[idx] = r_val['high'] + step
+
+                        # 黑色点：第2层高度 (High + 2个单位)
+                        if ts in add_timestamps:
+                            add_markers[idx] = r_val['high'] + step * 2
+
+                        # 紫色点：第3层高度 (High + 3个单位)
+                        if rounded_boot_timestamp and ts == rounded_boot_timestamp:
+                            boot_markers[idx] = r_val['high'] + step * 3
+
+                    # --- 指标计算 ---
                     df['EMA5'] = df['close'].ewm(span=5, adjust=False).mean()
                     df['EMA20'] = df['close'].ewm(span=20, adjust=False).mean()
                     df['EMA30'] = df['close'].ewm(span=30, adjust=False).mean()
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
-
                     df['custom_mid'] = (df['open'] + df['close']) / 2
                     df['custom_sma'] = df['custom_mid'].rolling(window=10).mean()
 
@@ -212,23 +208,17 @@ def process_csv(file_path):
                     adx, pdi, mdi = calculate_dmi(df['high'], df['low'], df['close'])
 
                     add_plots = []
+                    # 绘图：开平仓 (蓝色)
+                    if not np.all(np.isnan(open_close_markers)):
+                        add_plots.append(mpf.make_addplot(open_close_markers, type='scatter', markersize=300, marker='o', color='blue'))
+                    # 绘图：加仓 (黑色)
+                    if not np.all(np.isnan(add_markers)):
+                        add_plots.append(mpf.make_addplot(add_markers, type='scatter', markersize=300, marker='o', color='black'))
+                    # 绘图：Boot (紫色)
+                    if not np.all(np.isnan(boot_markers)):
+                        add_plots.append(mpf.make_addplot(boot_markers, type='scatter', markersize=300, marker='o', color='purple'))
 
-                    # 原始标记：开平仓 (蓝色)
-                    valid_open_close = [m for m in open_close_markers if not np.isnan(m)]
-                    if valid_open_close:
-                        add_plots.append(mpf.make_addplot(open_close_markers, type='scatter', markersize=400, marker='o', color='blue'))
-
-                    # 原始标记：加仓 (黑色)
-                    valid_add = [m for m in add_markers if not np.isnan(m)]
-                    if valid_add:
-                        add_plots.append(mpf.make_addplot(add_markers, type='scatter', markersize=400, marker='o', color='black'))
-
-                    # 新增标记：GBFirstBootTime (红色)
-                    valid_boot = [m for m in boot_markers if not np.isnan(m)]
-                    if valid_boot:
-                        add_plots.append(mpf.make_addplot(boot_markers, type='scatter', markersize=400, marker='o', color='purple'))
-
-                    # 主图 EMA 及自定义 SMA
+                    # 主图指标
                     add_plots.extend([
                         mpf.make_addplot(df['EMA5'], linestyle='--', color='red'),
                         mpf.make_addplot(df['EMA20'], linestyle='--', color='orange'),
@@ -237,22 +227,22 @@ def process_csv(file_path):
                         mpf.make_addplot(df['custom_sma'], color='cyan', width=1.5)
                     ])
 
-                    # Panel 1: MACD
+                    # MACD & DMI Panel
                     colors = ['red' if h < 0 else 'green' for h in histogram]
                     add_plots.extend([
                         mpf.make_addplot(macd, panel=1, color='fuchsia', ylabel='MACD'),
                         mpf.make_addplot(signal_line, panel=1, color='dodgerblue'),
-                        mpf.make_addplot(histogram, type='bar', panel=1, color=colors)
-                    ])
-
-                    # Panel 2: DMI
-                    add_plots.extend([
+                        mpf.make_addplot(histogram, type='bar', panel=1, color=colors),
                         mpf.make_addplot(adx, panel=2, color='black', ylabel='DMI/ADX'),
                         mpf.make_addplot(pdi, panel=2, color='green'),
                         mpf.make_addplot(mdi, panel=2, color='red'),
                     ])
                     add_plots.extend(add_dashed_lines(df, panel=2, levels=[20, 40]))
 
+                    # 绘图参数
+                    mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', ohlc='i')
+                    s = mpf.make_mpf_style(marketcolors=mc)
+                    additional_text = f"{funcName} {symbol} {open_time_str} -> {close_time_str} {side} {earn}/{me} {earnRate}/{maxEarnRate} {cp}"
                     num_candles = len(df)
                     fig_width = max(15, num_candles // 2)
                     fig_height = fig_width / 1.2
@@ -262,9 +252,8 @@ def process_csv(file_path):
                                          style=s, addplot=add_plots, figsize=(fig_width, fig_height),
                                          panel_ratios=(6, 2, 2))
 
-                        ax[0].set_title(additional_text, fontsize=fontSize, pad=20)
-                        ax[0].tick_params(axis='x', labelsize=20)
-                        ax[0].tick_params(axis='y', labelsize=20)
+                        ax[0].set_title(additional_text, fontsize=fontSize, pad=40) # 增加 pad 防止标题重叠点
+                        ax[0].tick_params(axis='both', labelsize=20)
 
                         safe_symbol = "".join(c for c in symbol if c.isalnum() or c in ('_', '-'))
                         safe_open_time = open_time_str.replace(':', '-').replace(' ', '_')
