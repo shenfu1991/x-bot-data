@@ -8,11 +8,11 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "hzx_2.csv"
+fileName = "hzx_1.csv"
 pading = 2
 fontSize = 50
 passLoss = False
-# passLoss = True
+#passLoss = True
 minPassLoss = 30
 
 if mins == 15:
@@ -203,6 +203,7 @@ def process_csv(file_path):
                     df['EMA50'] = df['close'].ewm(span=50, adjust=False).mean()
                     df['custom_mid'] = (df['open'] + df['close']) / 2
                     df['custom_sma'] = df['custom_mid'].rolling(window=10).mean()
+                    df['custom_sma_7'] = df['custom_mid'].rolling(window=7).mean()
 
                     macd, signal_line, histogram = calculate_macd(df['close'], fast=macd_fast, slow=macd_slow, signal=macd_signal)
                     adx, pdi, mdi = calculate_dmi(df['high'], df['low'], df['close'])
@@ -224,7 +225,8 @@ def process_csv(file_path):
                         mpf.make_addplot(df['EMA20'], linestyle='--', color='orange'),
                         mpf.make_addplot(df['EMA30'], linestyle='--', color='purple'),
                         mpf.make_addplot(df['EMA50'], linestyle='--', color='green'),
-                        mpf.make_addplot(df['custom_sma'], color='cyan', width=1.5)
+                        mpf.make_addplot(df['custom_sma'], color='cyan', width=1.5),
+                        mpf.make_addplot(df['custom_sma_7'], color='blue', width=1.5)
                     ])
 
                     # MACD & DMI Panel
