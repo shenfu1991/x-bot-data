@@ -8,11 +8,11 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "filtered_data.csv"
+fileName = "hzx_5.csv"
 pading = 2
 fontSize = 50
-#passLoss = False
-passLoss = True
+passLoss = False
+#passLoss = True
 minPassLoss = 30
 
 if mins == 15:
