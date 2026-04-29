@@ -8,11 +8,11 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "hzy_6.csv"
+fileName = "filtered_data.csv"
 pading = 2
 fontSize = 50
-passLoss = False
-#passLoss = True
+#passLoss = False
+passLoss = True
 minPassLoss = 30
 
 if mins == 15:
@@ -29,6 +29,10 @@ macd_signal = 9
 def sendPhoto(photoFile):
     TOKEN = "8627484326:AAG6GKM67FSccBEQNCLxi-0kBFlND7M54es"
     CHAT_ID = "1891285088"
+
+    if passLoss or fileName == "filtered_data.csv":
+        TOKEN = "8598961993:AAHE2yL43zmSnJgl5gpTDFKpX9ovroDXLlQ"
+        CHAT_ID = "1891285088"
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
 
