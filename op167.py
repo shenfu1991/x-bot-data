@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "hzx_1.csv"
+fileName = "hzy_6.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -25,6 +25,19 @@ macd_fast = 12
 macd_slow = 26
 macd_signal = 9
 # ---
+
+def sendPhoto(photoFile):
+    TOKEN = "8627484326:AAG6GKM67FSccBEQNCLxi-0kBFlND7M54es"
+    CHAT_ID = "1891285088"
+
+    url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
+
+    with open(photoFile, "rb") as f:
+      res = requests.post(
+        url,
+        data={"chat_id": CHAT_ID, "caption": ""},
+        files={"photo": f}
+      )
 
 def add_dashed_lines(df, panel, levels):
     """添加虚线到图表"""
@@ -264,6 +277,7 @@ def process_csv(file_path):
 
                         fig.savefig(output_file)
                         print(f"K-line chart saved to {output_file}")
+                        sendPhoto(output_file)
                     except Exception as e:
                         print(f"Error generating chart for {symbol}: {e}")
                 else:
