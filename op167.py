@@ -8,7 +8,7 @@ import numpy as np
 import os
 
 mins = 15
-fileName = "hzx_5.csv"
+fileName = "hgx_2.csv"
 pading = 2
 fontSize = 50
 passLoss = False
@@ -120,6 +120,7 @@ def process_csv(file_path):
                 symbol = row['symbol']
                 open_time_str = row['openTime']
                 close_time_str = row['closeTime']
+                close_half_time_str = row.get('closeHalfTime', 'none')
                 boot_time_str = row.get('GBFirstBootTime', '0')
                 add_time1_str = row['addTime1']
                 add_time2_str = row.get('addTime2', 'none')
@@ -142,6 +143,13 @@ def process_csv(file_path):
                 open_time = tz.localize(datetime.strptime(f"{open_time_str}", '%Y-%m-%d %H:%M:%S'))
                 close_time = tz.localize(datetime.strptime(f"{close_time_str}", '%Y-%m-%d %H:%M:%S'))
 
+                close_half_time = None
+                if (close_half_time_str
+                        and close_half_time_str.strip().lower() != 'none'
+                        and close_half_time_str.strip() != '1970-01-01 08:00:00'):
+                    close_half_time = tz.localize(datetime.strptime(
+                        close_half_time_str.strip(), '%Y-%m-%d %H:%M:%S'))
+
                 rounded_boot_timestamp = None
                 if boot_time_str and boot_time_str not in ['0', '00-00 00:00:00']:
                     boot_time = tz.localize(datetime.strptime(f"{boot_time_str}", '%Y-%m-%d %H:%M:%S'))
@@ -150,9 +158,15 @@ def process_csv(file_path):
 
                 open_timestamp = int(open_time.timestamp() * 1000)
                 close_timestamp = int(close_time.timestamp() * 1000)
+                close_half_timestamp = (int(close_half_time.timestamp() * 1000)
+                                        if close_half_time else None)
 
                 dateBoot = (rounded_boot_timestamp if rounded_boot_timestamp else open_timestamp) - 1000 * 60 * 60 * pading
-                dateClose = close_timestamp + 1000 * 60 * 60 * pading
+                last_close_timestamp = max(
+                    close_timestamp,
+                    close_half_timestamp if close_half_timestamp is not None else close_timestamp
+                )
+                dateClose = last_close_timestamp + 1000 * 60 * 60 * pading
 
                 try:
                     klines_url = f"https://fapi.binance.com/fapi/v1/continuousKlines?interval={mins}m&contractType=PERPETUAL&pair={symbol}&startTime={dateBoot}&endTime={dateClose}"
@@ -182,6 +196,10 @@ def process_csv(file_path):
                     rounded_close_time = round_to_nearest_3min(close_time)
                     rounded_open_timestamp = int(rounded_open_time.timestamp() * 1000)
                     rounded_close_timestamp = int(rounded_close_time.timestamp() * 1000)
+                    rounded_close_half_timestamp = None
+                    if close_half_time:
+                        rounded_close_half_time = round_to_nearest_3min(close_half_time)
+                        rounded_close_half_timestamp = int(rounded_close_half_time.timestamp() * 1000)
 
                     add_timestamps = []
                     for t_str in [add_time1_str, add_time2_str, add_time3_str]:
@@ -194,6 +212,7 @@ def process_csv(file_path):
                                 continue
 
                     open_close_markers = [np.nan] * len(df)
+                    close_half_markers = [np.nan] * len(df)
                     add_markers = [np.nan] * len(df)
                     boot_markers = [np.nan] * len(df)
 
@@ -204,6 +223,10 @@ def process_csv(file_path):
                         # 蓝色点：第1层高度 (High + 1个单位)
                         if ts == rounded_open_timestamp or ts == rounded_close_timestamp:
                             open_close_markers[idx] = r_val['high'] + step
+
+                        # 绿色点：减半平仓时间，与开平仓点使用相同高度
+                        if rounded_close_half_timestamp and ts == rounded_close_half_timestamp:
+                            close_half_markers[idx] = r_val['high'] + step
 
                         # 黑色点：第2层高度 (High + 2个单位)
                         if ts in add_timestamps:
@@ -229,6 +252,9 @@ def process_csv(file_path):
                     # 绘图：开平仓 (蓝色)
                     if not np.all(np.isnan(open_close_markers)):
                         add_plots.append(mpf.make_addplot(open_close_markers, type='scatter', markersize=300, marker='o', color='blue'))
+                    # 绘图：减半平仓 (绿色)
+                    if not np.all(np.isnan(close_half_markers)):
+                        add_plots.append(mpf.make_addplot(close_half_markers, type='scatter', markersize=300, marker='o', color='green'))
                     # 绘图：加仓 (黑色)
                     if not np.all(np.isnan(add_markers)):
                         add_plots.append(mpf.make_addplot(add_markers, type='scatter', markersize=300, marker='o', color='black'))
